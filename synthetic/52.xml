@@ -1,0 +1,26 @@
+<annotation verified="yes">
+	<folder>synthetic</folder>
+	<filename>52.png</filename>
+	<path>/home/carlo/Documents/Studia/Praca Politechnika/Okres 1/inception_yolo/synthetic/52.png</path>
+	<source>
+		<database>Unknown</database>
+	</source>
+	<size>
+		<width>512</width>
+		<height>512</height>
+		<depth>3</depth>
+	</size>
+	<segmented>0</segmented>
+	<object>
+		<name>side_rect</name>
+		<pose>Unspecified</pose>
+		<truncated>0</truncated>
+		<difficult>0</difficult>
+		<bndbox>
+			<xmin>158</xmin>
+			<ymin>84</ymin>
+			<xmax>212</xmax>
+			<ymax>106</ymax>
+		</bndbox>
+	</object>
+</annotation>

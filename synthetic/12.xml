@@ -1,0 +1,14 @@
+<annotation verified="yes">
+	<folder>synthetic</folder>
+	<filename>12.png</filename>
+	<path>/home/carlo/Documents/Studia/Praca Politechnika/Okres 1/inception_yolo/synthetic/12.png</path>
+	<source>
+		<database>Unknown</database>
+	</source>
+	<size>
+		<width>512</width>
+		<height>512</height>
+		<depth>1</depth>
+	</size>
+	<segmented>0</segmented>
+</annotation>
