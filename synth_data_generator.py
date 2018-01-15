@@ -47,8 +47,11 @@ def generate_image(max_num_objects, functions):
 
 
 functions = [draw_circle, draw_square, draw_side_rect, draw_up_rect]
-if not os.path.isdir('synthetic2'):
-    os.mkdir('synthetic2')
+
+path = 'synthetic2'
+
+if not os.path.isdir(path):
+    os.mkdir(path)
 for i in range(100):
     img = generate_image(max_num_objects, functions)
-    cv2.imwrite('synthetic/' + str(i) + '.png', img)
+    cv2.imwrite(path + '/' + str(i) + '.png', img)

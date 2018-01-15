@@ -24,8 +24,9 @@ with tf.Session() as sess:
 
     sess.run(tf.global_variables_initializer())
 
+
     for i in range(1):
-        conv = sess.run(out_box, feed_dict={input_placeholder: image})
+        conv = sess.run(reshaped, feed_dict={input_placeholder: image})
         print(conv.shape)
 
 
