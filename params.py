@@ -11,7 +11,9 @@ class_coefficient = 7.0 # 2.0
 coord_coefficient = 5.0
 
 
-classes = ['guzik', 'klucz_plaski', 'kombinerki', 'nozyczki', 'probowka', 'srubokret', 'tasma']
+classes_pl = ['guzik', 'klucz_plaski', 'kombinerki', 'nozyczki', 'probowka', 'srubokret', 'tasma']
+classes = ['button', 'wrench', 'pliers', 'scissors', 'vial', 'screwdriver', 'tape']
+transl = dict(zip(classes_pl, classes))
 C = len(classes)
 B = 2
 S = 7

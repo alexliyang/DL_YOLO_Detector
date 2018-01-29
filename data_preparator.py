@@ -7,6 +7,7 @@ import xml.etree.ElementTree as ET
 import tensorflow as tf
 from sklearn.utils import shuffle
 import math
+from statistics import get_distributions
 
 class DataPreparator:
     def __init__(self):
@@ -18,7 +19,9 @@ class DataPreparator:
         self.train_ratio = 0.9
 
         self.image_names, self.label_names = self.prepare()
-        self.create_TFRecords(self.image_names, self.label_names)
+        self.distribution, self.names_by_classes = get_distributions([name.replace('.jpg', '') for name in os.listdir('data/images')])
+
+        # self.create_TFRecords(self.image_names, self.label_names)
 
         print("Dataset ready!")
 
@@ -165,3 +168,5 @@ class DataPreparator:
                                                 min_after_dequeue=params.batch_size,
                                                 allow_smaller_final_batch=True)
         return images, labels
+
+p = DataPreparator()
