@@ -1,160 +1,120 @@
-import xml.etree.ElementTree as ET
-import numpy as np
-import cv2
 import os
+import cv2
+import numpy as np
+import params
 
 
-class DataPreparator:
-    """
-    Prepares data: converts xmls with PASCAL VOC annotations into numpy matrices, then to TFRecords
-    """
+def prepare_training_dirs():
+    if not os.path.isdir('models'):
+        os.mkdir('models')
+    if not os.path.isdir('summaries'):
+        os.mkdir('summaries')
 
-    def __init__(self, S: int):
-        """
-        :param S: image will be split into SxS subwindows
-        """
-        self.classes = ('circle', 'square', 'side_rect', 'up_rect')
-        self.S = S
 
-    def parse_xml(self, path):
-        """
-        Converts annotated bounding boxes to general, relative format
-        :param path:
-        :return:
-        """
-        annotations = {}
-        tree = ET.parse(path)
-        root = tree.getroot()
-        size = root.find('size')
-        width = int(size.find('width').text)
-        height = int(size.find('height').text)
-        annotations['dimensions'] = {'width': width,
-                                     'height': height}
+def draw_result(img, result):
+    for i in range(len(result)):
+        x = int(result[i][1])
+        y = int(result[i][2])
+        w = int(result[i][3] / 2)
+        h = int(result[i][4] / 2)
+        cv2.rectangle(img, (x - w, y - h), (x + w, y + h), (0, 255, 0), 2)
+        cv2.rectangle(img, (x - w, y - h - 20), (x + w, y - h), (125, 125, 125), -1)
+        cv2.putText(img, result[i][0] + ' : %.2f' % result[i][5], (x - w + 5, y - h - 7), cv2.FONT_HERSHEY_SIMPLEX, 0.5,
+                    (-0.5,-0.5,-0.5,), 1)
+    return img
 
-        bounding_boxes = []
-        for obj in root.findall('object'):
-            bndbox = obj.find('bndbox')
-            bounding_box = {'class': self.classes.index(obj.find('name').text),
-                            'xmin': int(bndbox.find('xmin').text) / width,
-                            'xmax': int(bndbox.find('xmax').text) / width,
-                            'ymin': int(bndbox.find('ymin').text) / height,
-                            'ymax': int(bndbox.find('ymax').text) / height}
-            bounding_boxes.append(bounding_box)
 
-        annotations['bounding_boxes'] = bounding_boxes
-        return annotations
+def iou(box1, box2):
+    tb = min(box1[0] + 0.5 * box1[2], box2[0] + 0.5 * box2[2]) - max(box1[0] - 0.5 * box1[2], box2[0] - 0.5 * box2[2])
+    lr = min(box1[1] + 0.5 * box1[3], box2[1] + 0.5 * box2[3]) - max(box1[1] - 0.5 * box1[3], box2[1] - 0.5 * box2[3])
+    if tb < 0 or lr < 0:
+        intersection = 0
+    else:
+        intersection = tb * lr
+    return intersection / (box1[2] * box1[3] + box2[2] * box2[3] - intersection)
 
-    def presence_matrix(self, annotations):
-        """
-        Checks, wheter Sij subwindows contains any object
-        :return: matrix SxS with ones, where subwindow contains any object
-        """
-        presence_matrix = np.zeros(shape=(self.S, self.S))
-        for bounding_box in annotations['bounding_boxes']:
-            xmin = bounding_box['xmin']
-            xmax = bounding_box['xmax']
-            ymin = bounding_box['ymin']
-            ymax = bounding_box['ymax']
 
-            # divides image sizes (relative, from 0 to 1) to S steps and checks, which bins are occupied by xmin etc.
-            x_min_bins = [1 if xmin < x_step else 0 for x_step in [(i + 1) * 1 / self.S for i in range(self.S)]]
-            x_max_bins = [1 if x_step < xmax else 0 for x_step in [i * 1 / self.S for i in range(self.S)]]
-            y_min_bins = [1 if ymin < y_step else 0 for y_step in [(i + 1) * 1 / self.S for i in range(self.S)]]
-            y_max_bins = [1 if y_step < ymax else 0 for y_step in [i * 1 / self.S for i in range(self.S)]]
+def interpret_output(output):
+    probs = np.zeros((params.S, params.S, params.B, params.C))
+    class_probs = np.reshape(output[0: params.boundary1], (params.S, params.S, params.C))
+    scales = np.reshape(output[params.boundary1: params.boundary2], (params.S, params.S, params.B))
+    boxes = np.reshape(output[params.boundary2:], (params.S, params.S, params.B, 4))
+    offset = np.transpose(
+        np.reshape(np.array([np.arange(params.S)] * params.S * params.B),
+                   [params.B, params.S, params.S]), (1, 2, 0))
 
-            x_bins = np.logical_and(x_min_bins, x_max_bins).astype(np.uint8)
-            y_bins = np.logical_and(y_min_bins, y_max_bins).astype(np.uint8)
+    boxes[:, :, :, 0] += offset
+    boxes[:, :, :, 1] += np.transpose(offset, (1, 0, 2))
+    boxes[:, :, :, :2] = 1.0 * boxes[:, :, :, 0:2] / params.S
+    boxes[:, :, :, 2:] = np.square(boxes[:, :, :, 2:])
 
-            # finds first occurences of ones in occupation lists
-            x_min_bin = np.where(x_bins == x_bins.max())[0][0]
-            x_max_bin = np.where(x_bins == x_bins.max())[0][-1]
-            y_min_bin = np.where(y_bins == y_bins.max())[0][0]
-            y_max_bin = np.where(y_bins == y_bins.max())[0][-1]
+    boxes *= params.img_size
 
-            presence_matrix[y_min_bin:y_max_bin + 1, x_min_bin:x_max_bin + 1] = 1
+    for i in range(params.B):
+        for j in range(params.C):
+            probs[:, :, i, j] = np.multiply(class_probs[:, :, j], scales[:, :, i])
 
-        return presence_matrix
+    filter_mat_probs = np.array(probs >= params.threshold, dtype='bool')
+    filter_mat_boxes = np.nonzero(filter_mat_probs)
+    boxes_filtered = boxes[filter_mat_boxes[0], filter_mat_boxes[1], filter_mat_boxes[2]]
+    probs_filtered = probs[filter_mat_probs]
+    classes_num_filtered = np.argmax(filter_mat_probs, axis=3)[
+        filter_mat_boxes[0], filter_mat_boxes[1], filter_mat_boxes[2]]
 
-    def create_xywh_tensor(self, annotations):
-        """
-        Creates n stacked tensors, where n is the number of annotations. Each tensor has shape SxSx4. 4, because it
-        contains relative x, relative y, w, h. Relative x is the difference beetween cell x origin and true position of X,
-        so for eg if we take 0th cell, got S=10 (each step is 0.1) and GT x=0.75, then relative x = 0.75 - 0*0.1 = 0.75.
-        Similarly, if we take 9th cell, relative x =  0.75 - 9*0.1 = -0.15 (negative values are also possible).
-        The same applies for relative y.
-        W,h are put into tensor without any manipualtions, because there are predicted by model as relative to the whole image,
-        so there is no need for relativeness manipulation.
-        :param annotations:
-        :return:
-        """
-        step = 1 / self.S
-        stacked_xywh = []
-        for bounding_box in annotations['bounding_boxes']:
-            xmin = bounding_box['xmin']
-            xmax = bounding_box['xmax']
-            ymin = bounding_box['ymin']
-            ymax = bounding_box['ymax']
+    argsort = np.array(np.argsort(probs_filtered))[::-1]
+    boxes_filtered = boxes_filtered[argsort]
+    probs_filtered = probs_filtered[argsort]
+    classes_num_filtered = classes_num_filtered[argsort]
 
-            x_center = (xmax - xmin) / 2 + xmin
-            y_center = (ymax - ymin) / 2 + ymin
-            w = xmax - xmin
-            h = ymax - ymin
+    for i in range(len(boxes_filtered)):
+        if probs_filtered[i] == 0:
+            continue
+        for j in range(i + 1, len(boxes_filtered)):
+            if iou(boxes_filtered[i], boxes_filtered[j]) > params.IOU_threshold:
+                probs_filtered[j] = 0.0
 
-            rel_x = np.array([x_center - i * step for i in range(self.S)]).reshape((1, self.S))
-            rel_y = np.array([y_center - i * step for i in range(self.S)]).reshape((self.S, 1))
-            tiled_x = np.repeat(rel_x, self.S, axis=0)
-            tiled_y = np.repeat(rel_y, self.S, axis=1)
+    filter_iou = np.array(probs_filtered > 0.0, dtype='bool')
+    boxes_filtered = boxes_filtered[filter_iou]
+    probs_filtered = probs_filtered[filter_iou]
+    classes_num_filtered = classes_num_filtered[filter_iou]
 
-            tiled_w = np.ones((self.S, self.S)) * w
-            tiled_h = np.ones((self.S, self.S)) * h
+    result = []
+    for i in range(len(boxes_filtered)):
+        result.append([params.classes[classes_num_filtered[i]], boxes_filtered[i][0], boxes_filtered[i][1],
+                       boxes_filtered[i][2], boxes_filtered[i][3], probs_filtered[i]])
 
-            stacked = np.stack((tiled_x, tiled_y, tiled_w, tiled_h))
-            stacked_xywh.append(stacked)
-        if len(stacked_xywh) == 0:
-            return np.zeros(shape=(1, 4, self.S, self.S))
-        return np.stack(stacked_xywh)
+    return result
 
-    def visualize_objects_presence(self, img, presence_matrix):
-        """
-        embedds presence matrix into original image - draws green rectangles, where object is present
-        and red, where object is not present
-        :return: original image with rectangles drawn onto it
-        """
-        x_step = img.shape[0] / self.S
-        y_step = img.shape[1] / self.S
 
-        alpha_img = np.zeros((img.shape[0], img.shape[1], 3), dtype=np.uint8)
+def net_readable_img(img):
+    img = cv2.resize(img, (params.img_size, params.img_size))
+    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB).astype(np.float32)
+    img = (img / 255.0) * 2.0 - 1.0
+    img = np.reshape(img, (1, params.img_size, params.img_size, 3))
+    return img
 
-        for y in range(self.S):
-            for x in range(self.S):
-                if presence_matrix[x, y] == 1:
-                    cv2.rectangle(alpha_img, (int(y * y_step), int(x * x_step)),
-                                  (int((y + 1) * y_step - 1), int((x + 1) * x_step - 1)),
-                                  color=(0, 255, 0), thickness=4)
-                else:
-                    cv2.rectangle(alpha_img, (int(y * y_step), int(x * x_step)),
-                                  (int((y + 1) * y_step - 1), int((x + 1) * x_step - 1)),
-                                  color=(0, 0, 255), thickness=1)
 
-        return cv2.addWeighted(alpha_img, 0.3, img, 1, 0)
+def draw_boxes(img, logits):
+    img_h = img.shape[0]
+    img_w = img.shape[1]
+    result = interpret_output(logits[0, ...])
+    print(result)
+    for i in range(len(result)):
+        result[i][1] *= (1.0 * img_w / params.img_size)
+        result[i][2] *= (1.0 * img_h / params.img_size)
+        result[i][3] *= (1.0 * img_w / params.img_size)
+        result[i][4] *= (1.0 * img_h / params.img_size)
+    tagged_img = draw_result(img, result)
+    return (tagged_img + 1.0) / 2 * 255
 
-    def provide_data(self, img_w, img_h, folder_path):
-        """
-        Provides raw data to network, not TFRecords
-        :param img_w, img_h - width and height of image after reshaping
-        :return: tuple(resized image, presence matrix, xywh_tensor)
-        """
-        filenames = sorted(os.listdir(folder_path))
-        # [0] -> images, [1] -> xmls
-        pairs = list(zip([img for img in filenames if '.png' in img], [xml for xml in filenames if '.xml' in xml]))
-        data = []
-        for pair in pairs:
-            img = cv2.imread(os.path.join(folder_path, pair[0]))
-            resized_img = cv2.resize(img, dsize=(img_w, img_h))
-
-            annotations = self.parse_xml(os.path.join(folder_path, pair[1]))
-            presence_matrix = self.presence_matrix(annotations)
-            xywh_tensor = self.create_xywh_tensor(annotations)
-            data.append([resized_img, presence_matrix, xywh_tensor])
-
-        return data
+def draw_video_boxes(img, logits):
+    img_h = img.shape[0]
+    img_w = img.shape[1]
+    result = interpret_output(logits[0, ...])
+    for i in range(len(result)):
+        result[i][1] *= (1.0 * img_w / params.img_size)
+        result[i][2] *= (1.0 * img_h / params.img_size)
+        result[i][3] *= (1.0 * img_w / params.img_size)
+        result[i][4] *= (1.0 * img_h / params.img_size)
+    tagged_img = draw_result(img, result)
+    return (tagged_img + 1.0) / 2
