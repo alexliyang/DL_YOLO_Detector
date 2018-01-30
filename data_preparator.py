@@ -80,7 +80,9 @@ class DataPreparator:
             y1 = max(min((float(bbox.find('ymin').text) - 1) * h_ratio, params.img_size - 1), 0)
             x2 = max(min((float(bbox.find('xmax').text) - 1) * w_ratio, params.img_size - 1), 0)
             y2 = max(min((float(bbox.find('ymax').text) - 1) * h_ratio, params.img_size - 1), 0)
-            cls_ind = params.classes.index(obj.find('name').text.lower().strip())
+            name = obj.find('name').text.lower().strip()
+            name_en = params.transl[name]
+            cls_ind = params.classes.index(name_en)
 
             boxes = [(x2 + x1) / 2.0, (y2 + y1) / 2.0, x2 - x1, y2 - y1]
 
