@@ -80,3 +80,6 @@ def losses(logits, labels):
                                     name='coord_loss') * params.coord_coefficient
 
         return class_loss, object_loss, noobject_loss, coord_loss
+
+def classification_loss(logits, labels):
+    return tf.losses.sparse_softmax_cross_entropy(labels, logits)

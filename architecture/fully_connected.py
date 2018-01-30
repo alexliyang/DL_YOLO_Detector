@@ -1,5 +1,5 @@
 import tensorflow as tf
-
+import params
 slim = tf.contrib.slim
 
 
@@ -29,17 +29,33 @@ def slim_dense(conv_output, num_classes, is_training=False):
             return net
 
 
-def custom_dense(conv_output, num_classes, is_training=False):
+def detection_dense(conv_output, num_classes, dropout_placeholder):
     """
     Custom fully connected set of layers. Enables training on other sets than original with 20 classes
     :param conv_output: output of convolutional part of network
     :return: tensor of dimensions: [batch_size, num_classes]
     """
-    with tf.variable_scope('dense', reuse=tf.AUTO_REUSE):
+    with tf.variable_scope('detection_dense', reuse=tf.AUTO_REUSE):
+        tran = tf.transpose(conv_output, [0, 3, 1, 2])
+        flat = tf.layers.flatten(tran)
+        dense = tf.layers.dense(flat, 512, activation=tf.nn.leaky_relu)
+        dropout = tf.layers.dropout(dense, training=dropout_placeholder)
+        dense = tf.layers.dense(dropout, 4096, activation=tf.nn.leaky_relu)
+        dropout = tf.layers.dropout(dense, training=dropout_placeholder)
+        logits = tf.layers.dense(dropout, num_classes, activation=None)
+        return logits
+
+
+def classification_dense(conv_output):
+    """
+    Custom fully connected set of layers, created for classification. Enables training on other sets than original with 20 classes
+    :param conv_output: output of convolutional part of network
+    :return: tensor of dimensions: [batch_size, num_classes]
+    """
+    with tf.variable_scope('classification_dense', reuse=tf.AUTO_REUSE):
         tran = tf.transpose(conv_output, [0, 3, 1, 2])
         flat = tf.layers.flatten(tran)
         dense = tf.layers.dense(flat, 512, activation=tf.nn.leaky_relu)
         dense = tf.layers.dense(dense, 4096, activation=tf.nn.leaky_relu)
-        dropout = tf.layers.dropout(dense, training=is_training)
-        logits = tf.layers.dense(dropout, num_classes, activation=None)
+        logits = tf.layers.dense(dense, len(params.classes), activation=None)
         return logits

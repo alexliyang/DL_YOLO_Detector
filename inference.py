@@ -20,7 +20,7 @@ images_placeholder = tf.placeholder(tf.float32, shape=[1, params.img_size, param
 
 # layers
 conv = convolution.slim_conv(images_placeholder)
-logits = fully_connected.custom_dense(conv, params.num_outputs)
+logits = fully_connected.detection_dense(conv, params.num_outputs)
 
 with tf.Session() as sess:
     init_op = tf.group(tf.global_variables_initializer(), tf.local_variables_initializer())

@@ -1,6 +1,7 @@
 # training params
 batch_size = 10
-epochs = 50
+epochs = 2
+classification_epochs = 2
 classification_eta = 0.001
 detection_eta = 0.00001
 

@@ -14,6 +14,7 @@ class DataPreparator:
         self.annotations_path = 'data/annotations'
         self.tensor_anno_path = 'data/tensor_annotations'
         self.writers_path = 'data/tf_records'
+        self.classification_path = 'data/classification'
 
         self.train_ratio = 0.9
 
@@ -21,8 +22,53 @@ class DataPreparator:
         self.distribution, self.names_by_classes = get_distributions([name.replace('.jpg', '') for name in os.listdir('data/images')])
 
         self.create_TFRecords(self.image_names, self.label_names)
+        self.create_classification_data()
 
         print("Dataset ready!")
+
+
+    def create_classification_data(self):
+        xml_labels = [name.replace(self.images_path, self.annotations_path).replace('.jpg', '.xml') for name in self.image_names]
+        if not os.path.isdir(self.classification_path):
+            os.mkdir(self.classification_path)
+
+        if not os.path.isfile(os.path.join(self.classification_path, '_train.tfrecord')):
+            writer = tf.python_io.TFRecordWriter(os.path.join(self.classification_path, '_train.tfrecord'))
+            counter = 0
+            for i, (img, label) in enumerate(zip(self.image_names, xml_labels)):
+                print("\rGenerating classification data (%.2f)" % (i / len(self.image_names)), end='', flush=True)
+                img = cv2.imread(img)
+                img = (img / 255.0) * 2.0 - 1.0
+
+                tree = ET.parse(label)
+                size = tree.find('size')
+                width = int(size.find('width').text)
+                height = int(size.find('height').text)
+                if height == 0 or width == 0:
+                    raise Exception
+
+                objs = tree.findall('object')
+
+                for obj in objs:
+                    counter+=1
+                    bbox = obj.find('bndbox')
+                    x1 = int(bbox.find('xmin').text) - 1
+                    y1 = int(bbox.find('ymin').text) - 1
+                    x2 = int(bbox.find('xmax').text)
+                    y2 = int(bbox.find('ymax').text)
+                    name = obj.find('name').text.lower().strip()
+                    name_en = params.transl[name]
+                    cls_ind = params.classes.index(name_en)
+
+                    ROI = cv2.resize(img[y1:y2, x1:x2], dsize = (params.img_size, params.img_size))
+                    feature = {'train/label': self._int64_feature(cls_ind),
+                              'train/image': self._bytes_feature(tf.compat.as_bytes(ROI.tostring()))}
+                    example = tf.train.Example(features=tf.train.Features(feature=feature))
+                    writer.write(example.SerializeToString())
+            print()
+        else:
+            print("No need to generate classification data!")
+
 
     @property
     def num_batches(self):
@@ -30,6 +76,13 @@ class DataPreparator:
         # val_len = sum((1 for record in tf.python_io.tf_record_iterator(os.path.join(self.writers_path, '_validation.tfrecord'))))
         # return math.ceil(train_len / params.batch_size), math.ceil(val_len / params.batch_size)
         return 513, 58 # values computed with commented code - it took to long to iterate over tf record every time
+
+
+    @property
+    def num_classification_batches(self):
+        return 3408 // params.batch_size # precomputed values
+
+
     def prepare(self):
         if not os.path.isdir(self.tensor_anno_path):
             os.mkdir(self.tensor_anno_path)
@@ -60,6 +113,7 @@ class DataPreparator:
                     os.remove(os.path.join(self.images_path, name))
         return sorted([os.path.join(self.images_path, name) for name in os.listdir(self.images_path)]), sorted(
             [os.path.join(self.tensor_anno_path, name) for name in os.listdir(self.tensor_anno_path)])
+
 
     def parse_xml(self, filename):
         tree = ET.parse(filename)
@@ -175,6 +229,10 @@ class DataPreparator:
     def _bytes_feature(self, value):
         return tf.train.Feature(bytes_list=tf.train.BytesList(value=[value]))
 
+    def _int64_feature(self, value):
+        return tf.train.Feature(int64_list=tf.train.Int64List(value=[value]))
+
+
     def decode_data(self, batch_size, mode):
         feature = {mode + '/image': tf.FixedLenFeature([], tf.string),
                    mode + '/label': tf.FixedLenFeature([], tf.string)}
@@ -186,6 +244,24 @@ class DataPreparator:
         features = tf.parse_single_example(serialized_example, features=feature)
         image = tf.reshape(tf.decode_raw(features[mode + '/image'], tf.float32), [params.img_size, params.img_size, 3])
         label = tf.reshape(tf.decode_raw(features[mode + '/label'], tf.float32), [params.S, params.S, 5 + params.C])
+
+        images, labels = tf.train.shuffle_batch([image, label],
+                                                batch_size=batch_size,
+                                                capacity=100,
+                                                num_threads=4,
+                                                min_after_dequeue=params.batch_size,
+                                                allow_smaller_final_batch=True)
+        return images, labels
+
+    def decode_classification_data(self, batch_size):
+        feature = {'train/image': tf.FixedLenFeature([], tf.string),
+                   'train/label': tf.FixedLenFeature([], tf.int64)}
+        filename_queue = tf.train.string_input_producer([os.path.join(self.classification_path, '_train.tfrecord')])
+        reader = tf.TFRecordReader()
+        _, serialized_example = reader.read(filename_queue)
+        features = tf.parse_single_example(serialized_example, features=feature)
+        image = tf.reshape(tf.decode_raw(features['train/image'], tf.float32), [params.img_size, params.img_size, 3])
+        label = tf.cast(features['train/label'], tf.int32)
 
         images, labels = tf.train.shuffle_batch([image, label],
                                                 batch_size=batch_size,
