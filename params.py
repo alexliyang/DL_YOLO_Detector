@@ -7,7 +7,7 @@ detection_eta = 0.00001
 # loss coefficients
 object_coefficient = 2.0
 no_object_coefficient = 1.0
-class_coefficient = 7.0 # 2.0
+class_coefficient = 5.0 # 2.0
 coord_coefficient = 5.0
 
 
