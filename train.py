@@ -1,6 +1,7 @@
 import os
 
 import cv2
+import numpy as np
 import tensorflow as tf
 
 import params
@@ -9,7 +10,7 @@ from data_preparator import DataPreparator
 from utils import prepare_training_dirs, draw_boxes
 
 # params
-model_name = 'classification_model'
+model_name = 'classification_model4'
 conv_weights_path = 'pretrained_weights/YOLO_small.ckpt'
 
 # data generation + dirs preparation
@@ -83,10 +84,16 @@ with tf.Session() as sess:
     saver_conv = tf.train.Saver(var_list=tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='yolo'))
     saver_dense = tf.train.Saver(var_list=tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='detection_dense'))
 
-    saver_conv.restore(sess, conv_weights_path)
-    if os.path.isdir(os.path.join('models', model_name)):
-        saver_dense.restore(sess, os.path.join('models', model_name, 'model.ckpt'))
-        print(model_name + ' model loaded')
+    if os.path.isdir(os.path.join('models', model_name + 'C')):
+        saver_conv.restore(sess, os.path.join('models', model_name + 'C', 'model.ckpt'))
+        print(model_name + ' model loaded (fine tuned conv)')
+    else:
+        saver_conv.restore(sess, conv_weights_path)
+        print(model_name + ' model loaded (pretrained conv)')
+
+    if os.path.isdir(os.path.join('models', model_name + 'D')):
+        saver_dense.restore(sess, os.path.join('models', model_name + 'D', 'model.ckpt'))
+        print(model_name + ' model loaded (dense)')
     coord = tf.train.Coordinator()
     threads = tf.train.start_queue_runners(coord=coord)
 
@@ -96,22 +103,28 @@ with tf.Session() as sess:
     cls_writer = tf.summary.FileWriter(os.path.join('summaries', model_name + '_CLS'), flush_secs=60)
 
     for epoch in range(params.classification_epochs):
-        for batch_idx in range(cls_batches):
+        for batch_idx in range(10):
             images, labels = sess.run([cls_images, cls_labels])
             _, cost, summary = sess.run([cls_train_op, classification_loss, merged],
-                                        feed_dict={images_placeholder: images, cls_labels_palceholder: labels})
-            print('\rClassification epoch: %d of %d, batch: %d of %d, loss: %f' % (epoch, params.classification_epochs, batch_idx, cls_batches, cost))
+                                        feed_dict={images_placeholder: images,
+                                                   cls_labels_palceholder: labels,
+                                                   dropout_placeholder: False,  # dummy placeholder
+                                                   labels_placeholder: np.zeros([params.batch_size, params.S, params.S,
+                                                                                 5 + params.C])})  # dummy placeholder
+            print('\rClassification epoch: %d of %d, batch: %d of %d, loss: %f' % (
+            epoch, params.classification_epochs, batch_idx, cls_batches, cost))
             cls_writer.add_summary(summary, global_step=epoch * cls_batches + batch_idx)
             cls_writer.flush()
-        saver_conv.save(sess, os.path.join('models', model_name, 'model.ckpt'))
+            saver_conv.save(sess, os.path.join('models', model_name + 'C', 'model.ckpt'))
 
 
     for epoch in range(params.epochs):
-        for batch_idx in range(train_batches):
+        for batch_idx in range(10):
             images, labels = sess.run([train_images, train_labels])
             _, cost, summary = sess.run([train_op, loss, merged],
                                         feed_dict={images_placeholder: images, labels_placeholder: labels,
-                                                   dropout_placeholder: True})
+                                                   dropout_placeholder: True,
+                                                   cls_labels_palceholder: [0] * params.batch_size}) #dummy placeholder
             print('\rEpoch: %d of %d, batch: %d of %d, loss: %f' % (epoch, params.epochs, batch_idx, train_batches, cost))
             train_writer.add_summary(summary, global_step=epoch * train_batches + batch_idx)
             train_writer.flush()
@@ -119,11 +132,13 @@ with tf.Session() as sess:
         for batch_idx in range(val_batches):
             images, labels = sess.run([val_images, val_labels])
             summary = sess.run(merged, feed_dict={images_placeholder: images, labels_placeholder: labels,
-                                                  dropout_placeholder: False})
+                                                  dropout_placeholder: False,
+                                                  cls_labels_palceholder: [0] * params.batch_size})  # dummy placeholder
+
             val_writer.add_summary(summary, global_step=epoch * val_batches + batch_idx)
             val_writer.flush()
 
-        saver_dense.save(sess, os.path.join('models', model_name, 'model.ckpt'))
+        saver_dense.save(sess, os.path.join('models', model_name + 'D', 'model.ckpt'))
 
         images = sess.run(val_images)
         output = sess.run(logits, feed_dict={images_placeholder: images, dropout_placeholder: False})
@@ -133,3 +148,8 @@ with tf.Session() as sess:
     coord.request_stop()
     coord.join(threads)
     sess.close()
+
+
+# todo
+# wygeneruj wielki dataset do classification
+# refaktoruj kod traina

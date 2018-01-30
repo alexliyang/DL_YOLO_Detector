@@ -14,7 +14,7 @@ class DataPreparator:
         self.annotations_path = 'data/annotations'
         self.tensor_anno_path = 'data/tensor_annotations'
         self.writers_path = 'data/tf_records'
-        self.classification_path = 'data/classification'
+        self.classification_path = 'data/classification2'
 
         self.train_ratio = 0.9
 
@@ -35,7 +35,7 @@ class DataPreparator:
         if not os.path.isfile(os.path.join(self.classification_path, '_train.tfrecord')):
             writer = tf.python_io.TFRecordWriter(os.path.join(self.classification_path, '_train.tfrecord'))
             counter = 0
-            for i, (img, label) in enumerate(zip(self.image_names, xml_labels)):
+            for i, (img, label) in enumerate(zip(self.image_names[:300], xml_labels[:300])):
                 print("\rGenerating classification data (%.2f)" % (i / len(self.image_names)), end='', flush=True)
                 img = cv2.imread(img)
                 img = (img / 255.0) * 2.0 - 1.0
@@ -61,8 +61,10 @@ class DataPreparator:
                     cls_ind = params.classes.index(name_en)
 
                     ROI = cv2.resize(img[y1:y2, x1:x2], dsize = (params.img_size, params.img_size))
-                    feature = {'train/label': self._int64_feature(cls_ind),
-                              'train/image': self._bytes_feature(tf.compat.as_bytes(ROI.tostring()))}
+                    ROI = ROI.astype(np.float32)
+                    feature = {'train/image': self._bytes_feature(tf.compat.as_bytes(ROI.tostring())),
+                                'train/label': self._int64_feature(cls_ind)}
+
                     example = tf.train.Example(features=tf.train.Features(feature=feature))
                     writer.write(example.SerializeToString())
             print()

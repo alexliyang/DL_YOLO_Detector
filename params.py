@@ -1,5 +1,5 @@
 # training params
-batch_size = 10
+batch_size = 5
 epochs = 2
 classification_epochs = 2
 classification_eta = 0.001
