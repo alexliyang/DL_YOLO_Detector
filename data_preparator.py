@@ -26,6 +26,11 @@ class DataPreparator:
 
         print("Dataset ready!")
 
+    def get_tf_record_names(self):
+        filenames = os.listdir(self.writers_path)
+        train = [os.path.join(self.writers_path, file) for file in filenames if 'train' in file]
+        val = [os.path.join(self.writers_path, file) for file in filenames if 'val' in file]
+        return train, val
 
     def create_classification_data(self):
         xml_labels = [name.replace(self.images_path, self.annotations_path).replace('.jpg', '.xml') for name in self.image_names]
@@ -165,10 +170,8 @@ class DataPreparator:
 
     def create_TFRecords(self, image_names, label_names):
         if os.path.isdir(self.writers_path):
-            if os.path.isfile(os.path.join(self.writers_path, '_train.tfrecord')) and os.path.isfile(
-                    os.path.join(self.writers_path, '_validation.tfrecord')):
-                print("No need to generate TFRecords")
-                return
+            print("No need to generate TFRecords")
+            return
 
         os.mkdir(self.writers_path)
         image_names, label_names = shuffle(image_names, label_names)
@@ -187,7 +190,7 @@ class DataPreparator:
                 train_i +=1
                 if train_i % 100 == 0:
                     train_writer.close()
-                    train_writer = self.create_writers(self.writers_path, 'train_' + str(train_i/100))
+                    train_writer = self.create_writers(self.writers_path, 'train_' + str(int(train_i/100)))
 
                 feature = {'train/label': self._bytes_feature(tf.compat.as_bytes(lbl.tostring())),
                            'train/image': self._bytes_feature(tf.compat.as_bytes(img.tostring()))}
@@ -197,7 +200,7 @@ class DataPreparator:
                 val_i += 1
                 if val_i % 100 == 0:
                     val_writer.close()
-                    val_writer = self.create_writers(self.writers_path, 'val_' + str(train_i / 100))
+                    val_writer = self.create_writers(self.writers_path, 'val_' + str(int(val_i/100)))
 
                 feature = {'validation/label': self._bytes_feature(tf.compat.as_bytes(lbl.tostring())),
                            'validation/image': self._bytes_feature(tf.compat.as_bytes(img.tostring()))}
@@ -232,7 +235,7 @@ class DataPreparator:
                     train_i += 1
                     if train_i % 100 == 0:
                         train_writer.close()
-                        train_writer = self.create_writers(self.writers_path, '_train_' + str(train_i / 100))
+                        train_writer = self.create_writers(self.writers_path, '_train_' + str(int(train_i / 100)))
 
                     feature = {'train/label': self._bytes_feature(tf.compat.as_bytes(lbl.tostring())),
                                'train/image': self._bytes_feature(tf.compat.as_bytes(img.tostring()))}
@@ -242,7 +245,7 @@ class DataPreparator:
                     val_i += 1
                     if val_i % 100 == 0:
                         val_writer.close()
-                        val_writer = self.create_writers(self.writers_path, 'val_' + str(train_i / 100))
+                        val_writer = self.create_writers(self.writers_path, 'val_' + str(int(val_i/ 100)))
 
                     feature = {'validation/label': self._bytes_feature(tf.compat.as_bytes(lbl.tostring())),
                                'validation/image': self._bytes_feature(tf.compat.as_bytes(img.tostring()))}
@@ -263,8 +266,9 @@ class DataPreparator:
     def decode_data(self, batch_size, mode):
         feature = {mode + '/image': tf.FixedLenFeature([], tf.string),
                    mode + '/label': tf.FixedLenFeature([], tf.string)}
-        filenames = [os.path.join(self.writers_path, '_train.tfrecord') if mode == 'train'
-                     else os.path.join(self.writers_path, '_validation.tfrecord')]
+
+        train_names, val_names = self.get_tf_record_names()
+        filenames = train_names if mode =='train' else val_names
         filename_queue = tf.train.string_input_producer(filenames)
         reader = tf.TFRecordReader()
         _, serialized_example = reader.read(filename_queue)
