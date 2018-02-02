@@ -206,6 +206,8 @@ class DataPreparator:
                            'validation/image': self._bytes_feature(tf.compat.as_bytes(img.tostring()))}
                 example = tf.train.Example(features=tf.train.Features(feature=feature))
                 val_writer.write(example.SerializeToString())
+        train_writer.close()
+        val_writer.close()
         print()
 
         # equalize data distribution
@@ -252,6 +254,8 @@ class DataPreparator:
                     example = tf.train.Example(features=tf.train.Features(feature=feature))
                     val_writer.write(example.SerializeToString())
                 i += 1
+        train_writer.close()
+        val_writer.close()
         print()
 
 
