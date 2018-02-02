@@ -1,8 +1,9 @@
 # training params
-batch_size = 5
+cls_batch_size = 3
+batch_size = 10
 epochs = 2
-classification_epochs = 2
-classification_eta = 0.001
+classification_epochs = 50
+classification_eta = 0.00005
 detection_eta = 0.00001
 
 # loss coefficients

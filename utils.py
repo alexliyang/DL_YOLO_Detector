@@ -9,6 +9,8 @@ def prepare_training_dirs():
         os.mkdir('models')
     if not os.path.isdir('summaries'):
         os.mkdir('summaries')
+    if not os.path.isdir('classification_summaries'):
+        os.mkdir('classification_summaries')
 
 
 def draw_result(img, result):

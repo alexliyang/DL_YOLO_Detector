@@ -10,13 +10,12 @@ from data_preparator import DataPreparator
 from utils import prepare_training_dirs, draw_boxes
 
 # params
-model_name = 'classification_model4'
+model_name = 'classification_model5'
 conv_weights_path = 'pretrained_weights/YOLO_small.ckpt'
 
 # data generation + dirs preparation
 preparator = DataPreparator()
 train_batches, val_batches = preparator.num_batches
-cls_batches = preparator.num_classification_batches
 prepare_training_dirs()
 
 # training data
@@ -29,16 +28,10 @@ val_images, val_labels = preparator.decode_data(params.batch_size, 'validation')
 v_channels = tf.unstack(train_images, axis=-1)
 val_images = tf.stack([v_channels[2], v_channels[1], v_channels[0]], axis=-1)
 
-# classification data
-cls_images, cls_labels = preparator.decode_classification_data(params.batch_size)
-c_channels = tf.unstack(cls_images, axis=-1)
-cls_images = tf.stack([c_channels[2], c_channels[1], c_channels[0]], axis=-1)
-
 # placeholders
 images_placeholder = tf.placeholder(tf.float32, shape=[None, params.img_size, params.img_size, 3])
 labels_placeholder = tf.placeholder(tf.float32, shape=[None, params.S, params.S, 5 + params.C])
 dropout_placeholder = tf.placeholder(tf.bool, shape=())
-cls_labels_palceholder = tf.placeholder(tf.int32, shape=None)
 
 # labels augmentation
 ones = tf.expand_dims(tf.ones_like(labels_placeholder[:, :, :, 0]), 3)
@@ -53,15 +46,10 @@ noisy_images = tf.multiply(images_placeholder,
 # layers
 conv = convolution.slim_conv(noisy_images)
 logits = fully_connected.detection_dense(conv, params.num_outputs, dropout_placeholder)
-classification_logits = fully_connected.classification_dense(conv)
 
 # train_op
-classification_loss = loss_layer.classification_loss(classification_logits, cls_labels_palceholder)
 class_loss, object_loss, noobject_loss, coord_loss = loss_layer.losses(logits, noisy_labels)
 loss = class_loss + object_loss + noobject_loss + coord_loss
-
-with tf.name_scope('classification_summaries'):
-    tf.summary.scalar('classification_loss', classification_loss)
 
 with tf.name_scope('summaries'):
     tf.summary.scalar('class_loss', class_loss)
@@ -69,10 +57,6 @@ with tf.name_scope('summaries'):
     tf.summary.scalar('noobject_loss', noobject_loss)
     tf.summary.scalar('coord_loss', coord_loss)
     tf.summary.scalar('loss', loss)
-
-cls_train_op = tf.train.AdamOptimizer(params.classification_eta).minimize(classification_loss, var_list=[
-    tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, 'yolo'),
-    tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, 'classification_dense')])
 
 trainable_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, 'detection_dense')
 train_op = tf.train.AdamOptimizer(params.detection_eta).minimize(loss, var_list=trainable_vars)
@@ -100,22 +84,24 @@ with tf.Session() as sess:
     # TB writers
     train_writer = tf.summary.FileWriter(os.path.join('summaries', model_name + '_T'), sess.graph, flush_secs=60)
     val_writer = tf.summary.FileWriter(os.path.join('summaries', model_name + '_V'), flush_secs=60)
-    cls_writer = tf.summary.FileWriter(os.path.join('summaries', model_name + '_CLS'), flush_secs=60)
+
 
     for epoch in range(params.classification_epochs):
         for batch_idx in range(10):
             images, labels = sess.run([cls_images, cls_labels])
-            _, cost, summary = sess.run([cls_train_op, classification_loss, merged],
+            _, cost, summary, out = sess.run([cls_train_op, classification_loss, merged, classification_logits],
                                         feed_dict={images_placeholder: images,
                                                    cls_labels_palceholder: labels,
                                                    dropout_placeholder: False,  # dummy placeholder
                                                    labels_placeholder: np.zeros([params.batch_size, params.S, params.S,
                                                                                  5 + params.C])})  # dummy placeholder
-            print('\rClassification epoch: %d of %d, batch: %d of %d, loss: %f' % (
-            epoch, params.classification_epochs, batch_idx, cls_batches, cost))
-            cls_writer.add_summary(summary, global_step=epoch * cls_batches + batch_idx)
-            cls_writer.flush()
-            saver_conv.save(sess, os.path.join('models', model_name + 'C', 'model.ckpt'))
+            print(out)
+
+            # print('\rClassification epoch: %d of %d, batch: %d of %d, loss: %f' % (
+            # epoch, params.classification_epochs, batch_idx, cls_batches, cost))
+            # cls_writer.add_summary(summary, global_step=epoch * cls_batches + batch_idx)
+            # cls_writer.flush()
+            # saver_conv.save(sess, os.path.join('models', model_name + 'C', 'model.ckpt'))
 
 
     for epoch in range(params.epochs):
