@@ -36,9 +36,7 @@ class DataPreparator:
             writer = tf.python_io.TFRecordWriter(os.path.join(self.classification_path, '_train.tfrecord'))
             counter = 0
             for i, (img, label) in enumerate(zip(self.image_names, xml_labels)):
-                # print("\rGenerating classification data (%.2f)" % (i / len(self.image_names)), end='', flush=True)
-                imgname = img
-
+                print("\rGenerating classification data (%.2f)" % (i / len(self.image_names)), end='', flush=True)
                 img = cv2.imread(img)
                 img = (img / 255.0) * 2.0 - 1.0
 
@@ -61,7 +59,6 @@ class DataPreparator:
                     name = obj.find('name').text.lower().strip()
                     name_en = params.transl[name]
                     cls_ind = params.classes.index(name_en)
-                    print(i, len(self.image_names), cls_ind, imgname)
                     ROI = cv2.resize(img[y1:y2, x1:x2], dsize = (params.img_size, params.img_size))
                     ROI = ROI.astype(np.float32)
                     feature = {'train/image': self._bytes_feature(tf.compat.as_bytes(ROI.tostring())),
@@ -269,8 +266,8 @@ class DataPreparator:
 
         images, labels = tf.train.shuffle_batch([image, label],
                                                 batch_size=batch_size,
-                                                capacity=400,
+                                                capacity=1000,
                                                 num_threads=4,
-                                                min_after_dequeue=50,
+                                                min_after_dequeue=500,
                                                 allow_smaller_final_batch=True)
         return images, labels
