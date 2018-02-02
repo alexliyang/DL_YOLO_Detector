@@ -152,10 +152,9 @@ class DataPreparator:
 
         return label
 
-    def create_writers(self, writers_folder):
-        train_writer = tf.python_io.TFRecordWriter(os.path.join(writers_folder, '_train.tfrecord'))
-        validation_writer = tf.python_io.TFRecordWriter(os.path.join(writers_folder, '_validation.tfrecord'))
-        return train_writer, validation_writer
+    def create_writers(self, writers_folder, name):
+        writer = tf.python_io.TFRecordWriter(os.path.join(writers_folder, name + '.tfrecord'))
+        return writer
 
     def image_read(self, imname):
         image = cv2.imread(imname)
@@ -172,26 +171,38 @@ class DataPreparator:
                 return
 
         os.mkdir(self.writers_path)
-
         image_names, label_names = shuffle(image_names, label_names)
-
-        train_writer, validation_writer = self.create_writers(self.writers_path)
         max_train_idx = int(self.train_ratio * len(image_names))
+
+        train_i = 0
+        val_i = 0
+        train_writer = self.create_writers(self.writers_path, 'train_0')
+        val_writer = self.create_writers(self.writers_path, 'val_0')
 
         for i, (imgname, label) in enumerate(zip(image_names, label_names)):
             print("\rGenerating TFRecords (%.2f)" % (i / len(image_names)), end='', flush=True)
             img = self.image_read(imgname)
             lbl = np.load(label).astype(np.float32)
             if i < max_train_idx:
+                train_i +=1
+                if train_i % 100 == 0:
+                    train_writer.close()
+                    train_writer = self.create_writers(self.writers_path, 'train_' + str(train_i/100))
+
                 feature = {'train/label': self._bytes_feature(tf.compat.as_bytes(lbl.tostring())),
                            'train/image': self._bytes_feature(tf.compat.as_bytes(img.tostring()))}
                 example = tf.train.Example(features=tf.train.Features(feature=feature))
                 train_writer.write(example.SerializeToString())
             else:
+                val_i += 1
+                if val_i % 100 == 0:
+                    val_writer.close()
+                    val_writer = self.create_writers(self.writers_path, 'val_' + str(train_i / 100))
+
                 feature = {'validation/label': self._bytes_feature(tf.compat.as_bytes(lbl.tostring())),
                            'validation/image': self._bytes_feature(tf.compat.as_bytes(img.tostring()))}
                 example = tf.train.Example(features=tf.train.Features(feature=feature))
-                validation_writer.write(example.SerializeToString())
+                val_writer.write(example.SerializeToString())
         print()
 
         # equalize data distribution
@@ -206,6 +217,11 @@ class DataPreparator:
 
             max_train_idx = int(self.train_ratio * to_create)
 
+            train_i = 0
+            val_i = 0
+            train_writer = self.create_writers(self.writers_path, '_train_0')
+            val_writer = self.create_writers(self.writers_path, '_val_0')
+
             for k, (imgname, label) in enumerate(zip(image_names, label_names)):
                 print("\rUpdating TFRecords (%.2f)" % (i / all_to_create), end='', flush=True)
                 img = self.image_read(imgname)
@@ -213,15 +229,25 @@ class DataPreparator:
                 lbl = np.load(label).astype(np.float32)
                 lbl[:, :, 1:5] *= np.random.uniform(0.99, 1.01)
                 if k < max_train_idx:
+                    train_i += 1
+                    if train_i % 100 == 0:
+                        train_writer.close()
+                        train_writer = self.create_writers(self.writers_path, '_train_' + str(train_i / 100))
+
                     feature = {'train/label': self._bytes_feature(tf.compat.as_bytes(lbl.tostring())),
                                'train/image': self._bytes_feature(tf.compat.as_bytes(img.tostring()))}
                     example = tf.train.Example(features=tf.train.Features(feature=feature))
                     train_writer.write(example.SerializeToString())
                 else:
+                    val_i += 1
+                    if val_i % 100 == 0:
+                        val_writer.close()
+                        val_writer = self.create_writers(self.writers_path, 'val_' + str(train_i / 100))
+
                     feature = {'validation/label': self._bytes_feature(tf.compat.as_bytes(lbl.tostring())),
                                'validation/image': self._bytes_feature(tf.compat.as_bytes(img.tostring()))}
                     example = tf.train.Example(features=tf.train.Features(feature=feature))
-                    validation_writer.write(example.SerializeToString())
+                    val_writer.write(example.SerializeToString())
                 i += 1
         print()
 

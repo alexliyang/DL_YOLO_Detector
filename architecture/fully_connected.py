@@ -1,5 +1,6 @@
 import tensorflow as tf
 import params
+
 slim = tf.contrib.slim
 
 
@@ -38,9 +39,18 @@ def detection_dense(conv_output, num_classes, dropout_placeholder):
     with tf.variable_scope('detection_dense', reuse=tf.AUTO_REUSE):
         tran = tf.transpose(conv_output, [0, 3, 1, 2])
         flat = tf.layers.flatten(tran)
-        dense = tf.layers.dense(flat, 512, activation=tf.nn.leaky_relu)
+        dense = tf.layers.dense(flat, 512,
+                                activation=tf.nn.leaky_relu,
+                                kernel_initializer=tf.contrib.layers.xavier_initializer(),
+                                use_bias=True,
+                                kernel_regularizer=tf.contrib.layers.l2_regularizer(1.0))
+        bn = tf.layers.batch_normalization(dense)
         dropout = tf.layers.dropout(dense, training=dropout_placeholder)
-        dense = tf.layers.dense(dropout, 4096, activation=tf.nn.leaky_relu)
+        dense = tf.layers.dense(dropout, 4096,
+                                activation=tf.nn.leaky_relu,
+                                kernel_initializer=tf.contrib.layers.xavier_initializer(),
+                                use_bias=True,
+                                kernel_regularizer=tf.contrib.layers.l2_regularizer(1.0))
         dropout = tf.layers.dropout(dense, training=dropout_placeholder)
         logits = tf.layers.dense(dropout, num_classes, activation=None)
         return logits

@@ -11,7 +11,7 @@ from utils import prepare_training_dirs, draw_boxes
 
 # params
 pretrained_classification_model = 'classification_model_4'
-model_name = 'detection_model_4'
+model_name = 'model_with_bias_regulari'
 conv_weights_path = 'pretrained_weights/YOLO_small.ckpt'
 
 # data generation + dirs preparation
@@ -36,13 +36,13 @@ dropout_placeholder = tf.placeholder(tf.bool, shape=())
 
 # labels augmentation
 ones = tf.expand_dims(tf.ones_like(labels_placeholder[:, :, :, 0]), 3)
-noise_mask = tf.concat([ones, tf.random_uniform([params.batch_size, params.S, params.S, 4], 0.99, 1.01),
+noise_mask = tf.concat([ones, tf.random_uniform([params.batch_size, params.S, params.S, 4], 0.999, 1.001),
                         tf.tile(ones, [1, 1, 1, params.C])], axis=3)
 noisy_labels = tf.multiply(labels_placeholder, noise_mask)
 
 # images augmentation
 noisy_images = tf.multiply(images_placeholder,
-                           tf.random_uniform([params.batch_size, params.img_size, params.img_size, 3], 0.99, 1.01))
+                           tf.random_uniform([params.batch_size, params.img_size, params.img_size, 3], 0.999, 1.001))
 
 # layers
 conv = convolution.slim_conv(noisy_images)
