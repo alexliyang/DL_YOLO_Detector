@@ -7,7 +7,7 @@ from architecture import convolution, fully_connected, loss_layer
 from data_preparator import DataPreparator
 from utils import prepare_training_dirs
 
-model_name = 'classification_model_8'
+model_name = 'classification_model_2'
 conv_weights_path = 'pretrained_weights/YOLO_small.ckpt'
 
 preparator = DataPreparator()
@@ -58,7 +58,7 @@ with tf.Session() as sess:
     writer = tf.summary.FileWriter(os.path.join('classification_summaries', model_name + '_C'), flush_secs=60)
 
     for epoch in range(params.classification_epochs):
-        for batch_idx in range(40):
+        for batch_idx in range(num_batches):
             images, labels = sess.run([images_feed, labels_feed])
             _, cost, summary, out = sess.run([train_op, loss, merged, logits],
                                         feed_dict={images_placeholder: images,

@@ -251,9 +251,9 @@ class DataPreparator:
 
         images, labels = tf.train.shuffle_batch([image, label],
                                                 batch_size=batch_size,
-                                                capacity=5000,
+                                                capacity=400,
                                                 num_threads=4,
-                                                min_after_dequeue=500,
+                                                min_after_dequeue=50,
                                                 allow_smaller_final_batch=True)
         return images, labels
 
@@ -269,8 +269,8 @@ class DataPreparator:
 
         images, labels = tf.train.shuffle_batch([image, label],
                                                 batch_size=batch_size,
-                                                capacity=4000,
+                                                capacity=400,
                                                 num_threads=4,
-                                                min_after_dequeue=500,
+                                                min_after_dequeue=50,
                                                 allow_smaller_final_batch=True)
         return images, labels
