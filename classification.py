@@ -7,7 +7,7 @@ from architecture import convolution, fully_connected, loss_layer
 from data_preparator import DataPreparator
 from utils import prepare_training_dirs
 
-model_name = 'classification_model_1'
+model_name = 'classification_model_8'
 conv_weights_path = 'pretrained_weights/YOLO_small.ckpt'
 
 preparator = DataPreparator()
@@ -37,17 +37,20 @@ merged = tf.summary.merge_all()
 with tf.Session() as sess:
     init_op = tf.group(tf.global_variables_initializer(), tf.local_variables_initializer())
     sess.run(init_op)
-    saver = tf.train.Saver()
-    saver_pretrained = tf.train.Saver(var_list=tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='yolo'))
+    saver_dense = tf.train.Saver(var_list=tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='classification_dense'))
+    saver_conv = tf.train.Saver(var_list=tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='yolo'))
 
     # fine tuned model available
     if os.path.isdir(os.path.join('models', model_name + '_C')):
-        saver.restore(sess, os.path.join('models', model_name + '_C', 'model.ckpt'))
+
+        saver_conv.restore(sess, os.path.join('models', model_name + '_C', 'model_conv.ckpt'))
+        saver_dense.restore(sess, os.path.join('models', model_name + '_C', 'model_dense.ckpt'))
         print(model_name + ' model loaded (fine tuned model)')
     # only pretrained slim weights available
     else:
-        saver_pretrained.restore(sess, conv_weights_path)
+        saver_conv.restore(sess, conv_weights_path)
         print(model_name + ' model loaded (pretrained model)')
+
 
     coord = tf.train.Coordinator()
     threads = tf.train.start_queue_runners(coord=coord)
@@ -55,7 +58,7 @@ with tf.Session() as sess:
     writer = tf.summary.FileWriter(os.path.join('classification_summaries', model_name + '_C'), flush_secs=60)
 
     for epoch in range(params.classification_epochs):
-        for batch_idx in range(num_batches):
+        for batch_idx in range(40):
             images, labels = sess.run([images_feed, labels_feed])
             _, cost, summary, out = sess.run([train_op, loss, merged, logits],
                                         feed_dict={images_placeholder: images,
@@ -63,7 +66,8 @@ with tf.Session() as sess:
             print('\rClassification epoch: %d of %d, batch: %d of %d, loss: %f' % (epoch, params.classification_epochs, batch_idx, num_batches, cost), flush=True, end='')
             writer.add_summary(summary, global_step=epoch * num_batches + batch_idx)
             writer.flush()
-        saver.save(sess, os.path.join('models', model_name + 'C', 'model.ckpt'))
+        saver_conv.save(sess, os.path.join('models', model_name + '_C', 'model_conv.ckpt'))
+        saver_dense.save(sess, os.path.join('models', model_name + '_C', 'model_dense.ckpt'))
 
     coord.request_stop()
     coord.join(threads)
