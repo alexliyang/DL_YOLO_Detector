@@ -7,6 +7,7 @@ import xml.etree.ElementTree as ET
 import tensorflow as tf
 from sklearn.utils import shuffle
 from statistics import get_distributions
+import math
 
 class DataPreparator:
     def __init__(self):
@@ -80,8 +81,11 @@ class DataPreparator:
     def num_batches(self):
         # train_len = sum((1 for record in tf.python_io.tf_record_iterator(os.path.join(self.writers_path, '_train.tfrecord'))))
         # val_len = sum((1 for record in tf.python_io.tf_record_iterator(os.path.join(self.writers_path, '_validation.tfrecord'))))
-        # return math.ceil(train_len / params.batch_size), math.ceil(val_len / params.batch_size)
-        return 513, 58 # values computed with commented code - it took to long to iterate over tf record every time
+
+        #precomputed values
+        train_len = 5215
+        val_len = 573
+        return math.ceil(train_len / params.batch_size), math.ceil(val_len / params.batch_size)
 
 
     @property

@@ -71,13 +71,13 @@ imagenet_dictionary = {
     'n02764044': 'axe',
     'n03346289': 'axe',
 }
-imagenet_classes = list(imagenet_dictionary.values())
+imagenet_classes = list(set(imagenet_dictionary.values()))
 
 
 # training params
 cls_batch_size = 2
 batch_size = 10
-epochs = 2
+epochs = 50
 classification_epochs = 50
 classification_eta = 0.0001
 detection_eta = 0.00001
@@ -105,5 +105,3 @@ threshold = 0.01
 IOU_threshold = 0.1
 # threshold = 0.2
 # IOU_threshold = 0.5
-
-

@@ -53,6 +53,7 @@ def get_imagenet_distributions(filenames):
 
     for name in filenames:
         classes = name_from_xml(name)
+        name = name.split('/')[-1].replace('.xml', '')
         if list(classes)[0] in names_by_classes:
             names_by_classes[list(classes)[0]].append(name)
         else:

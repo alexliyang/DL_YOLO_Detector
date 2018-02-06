@@ -7,27 +7,24 @@ import tensorflow as tf
 import params
 from architecture import convolution, fully_connected, loss_layer
 from data_preparator import DataPreparator
+from imagenet_data_preparator import ImagenetDataPreparator
 from utils import prepare_training_dirs, draw_boxes
 
 # params
-pretrained_classification_model = 'classification_model_4'
-model_name = 'sharded_tf_records'
+pretrained_classification_model = 'dsadasNone'
+model_name = 'ffsdsdf'
 conv_weights_path = 'pretrained_weights/YOLO_small.ckpt'
 
 # data generation + dirs preparation
-preparator = DataPreparator()
+preparator = ImagenetDataPreparator()
 train_batches, val_batches = preparator.num_batches
 prepare_training_dirs()
 
 # training data
 train_images, train_labels = preparator.decode_data(params.batch_size, 'train')
-# t_channels = tf.unstack(train_images, axis=-1)
-# train_images = tf.stack([t_channels[2], t_channels[1], t_channels[0]], axis=-1)
 
 # validation data
 val_images, val_labels = preparator.decode_data(params.batch_size, 'validation')
-# v_channels = tf.unstack(train_images, axis=-1)
-# val_images = tf.stack([v_channels[2], v_channels[1], v_channels[0]], axis=-1)
 
 # placeholders
 images_placeholder = tf.placeholder(tf.float32, shape=[None, params.img_size, params.img_size, 3])

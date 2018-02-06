@@ -6,7 +6,7 @@ import params
 
 def make_dirs(imagenet_folder='imagenet_data'):
     imagenet_dir = imagenet_folder
-    needed_dirs = ['annotations', 'images', 'tensor_annotations', 'tfrecords', 'classification_images']
+    needed_dirs = ['annotations', 'images', 'tensor_annotations', 'classification_images']
     curr_dirs = os.listdir(imagenet_dir)
     for dir in needed_dirs:
         if not dir in curr_dirs:

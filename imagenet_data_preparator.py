@@ -9,7 +9,7 @@ from sklearn.utils import shuffle
 
 import params
 from statistics import get_imagenet_distributions
-
+import math
 
 class ImagenetDataPreparator:
     def __init__(self):
@@ -18,6 +18,7 @@ class ImagenetDataPreparator:
         self.tensor_anno_path = 'imagenet_data/tensor_annotations'
         self.writers_path = 'imagenet_data/tf_records'
         self.classification_path = 'imagenet_data/classification'
+        self.writers_path = 'imagenet_data/tf_records'
 
         self.train_ratio = 0.9
 
@@ -81,10 +82,12 @@ class ImagenetDataPreparator:
 
     @property
     def num_batches(self):
-        # train_len = sum((1 for record in tf.python_io.tf_record_iterator(os.path.join(self.writers_path, '_train.tfrecord'))))
-        # val_len = sum((1 for record in tf.python_io.tf_record_iterator(os.path.join(self.writers_path, '_validation.tfrecord'))))
-        # return math.ceil(train_len / params.batch_size), math.ceil(val_len / params.batch_size)
-        return 513, 58  # values computed with commented code - it took to long to iterate over tf record every time
+        train_names, val_names = self.get_tf_record_names()
+        # train_len = sum(sum(1 for record in tf.python_io.tf_record_iterator(name)) for name in train_names)
+        # val_len = sum(sum(1 for record in tf.python_io.tf_record_iterator(name)) for name in val_names)
+        train_len = 6043
+        val_len = 556
+        return math.ceil(train_len / params.batch_size), math.ceil(val_len / params.batch_size)
 
     @property
     def num_classification_batches(self):
@@ -158,10 +161,6 @@ class ImagenetDataPreparator:
 
         return label
 
-    def create_writers(self, writers_folder):
-        train_writer = tf.python_io.TFRecordWriter(os.path.join(writers_folder, '_train.tfrecord'))
-        validation_writer = tf.python_io.TFRecordWriter(os.path.join(writers_folder, '_validation.tfrecord'))
-        return train_writer, validation_writer
 
     def image_read(self, imname):
         image = cv2.imread(imname)
@@ -170,65 +169,99 @@ class ImagenetDataPreparator:
         image = (image / 255.0) * 2.0 - 1.0
         return image
 
+    def create_writers(self, writers_folder, name):
+        writer = tf.python_io.TFRecordWriter(os.path.join(writers_folder, name + '.tfrecord'))
+        return writer
+
     def create_TFRecords(self, image_names, label_names):
         if os.path.isdir(self.writers_path):
-            if os.path.isfile(os.path.join(self.writers_path, '_train.tfrecord')) and os.path.isfile(
-                    os.path.join(self.writers_path, '_validation.tfrecord')):
-                print("No need to generate TFRecords")
-                return
+            print("No need to generate TFRecords")
+            return
 
         os.mkdir(self.writers_path)
 
+        # shuffle it thoroughly! :)
         image_names, label_names = shuffle(image_names, label_names)
 
-        train_writer, validation_writer = self.create_writers(self.writers_path)
-        max_train_idx = int(self.train_ratio * len(image_names))
+        train_i = 0
+        val_i = 0
+        train_writer = self.create_writers(self.writers_path, 'train_0')
+        val_writer = self.create_writers(self.writers_path, 'val_0')
 
         for i, (imgname, label) in enumerate(zip(image_names, label_names)):
             print("\rGenerating TFRecords (%.2f)" % (i / len(image_names)), end='', flush=True)
             img = self.image_read(imgname)
             lbl = np.load(label).astype(np.float32)
-            if i < max_train_idx:
+            e = np.random.uniform(0,1)
+            if e < self.train_ratio:
+                train_i +=1
+                if train_i % 100 == 0:
+                    train_writer.close()
+                    train_writer = self.create_writers(self.writers_path, 'train_' + str(int(train_i/100)))
+
                 feature = {'train/label': self._bytes_feature(tf.compat.as_bytes(lbl.tostring())),
                            'train/image': self._bytes_feature(tf.compat.as_bytes(img.tostring()))}
                 example = tf.train.Example(features=tf.train.Features(feature=feature))
                 train_writer.write(example.SerializeToString())
             else:
+                val_i += 1
+                if val_i % 100 == 0:
+                    val_writer.close()
+                    val_writer = self.create_writers(self.writers_path, 'val_' + str(int(val_i/100)))
+
                 feature = {'validation/label': self._bytes_feature(tf.compat.as_bytes(lbl.tostring())),
                            'validation/image': self._bytes_feature(tf.compat.as_bytes(img.tostring()))}
                 example = tf.train.Example(features=tf.train.Features(feature=feature))
-                validation_writer.write(example.SerializeToString())
+                val_writer.write(example.SerializeToString())
+        train_writer.close()
+        val_writer.close()
         print()
 
         # equalize data distribution
         max_distr = max(self.distribution.values())
         all_to_create = sum([max_distr - val for val in self.distribution.values()])
-        i = 0
+        i=0
         for (key, dist), names in zip(self.distribution.items(), self.names_by_classes.values()):
             to_create = max_distr - dist
             names = np.random.choice(names, to_create)
             image_names = [os.path.join(self.images_path, name + '.jpg') for name in names]
             label_names = [os.path.join(self.tensor_anno_path, name + '.npy') for name in names]
 
-            max_train_idx = int(self.train_ratio * to_create)
+            train_i = 0
+            val_i = 0
+            train_writer = self.create_writers(self.writers_path, '_train_0')
+            val_writer = self.create_writers(self.writers_path, '_val_0')
 
             for k, (imgname, label) in enumerate(zip(image_names, label_names)):
                 print("\rUpdating TFRecords (%.2f)" % (i / all_to_create), end='', flush=True)
                 img = self.image_read(imgname)
-                img += np.random.uniform(0.0, 0.02)  # randomize data
+                img += np.random.uniform(0.0, 0.02) # randomize data
                 lbl = np.load(label).astype(np.float32)
                 lbl[:, :, 1:5] *= np.random.uniform(0.99, 1.01)
-                if k < max_train_idx:
+                e = np.random.uniform(0, 1)
+                if e < self.train_ratio:
+                    train_i += 1
+                    if train_i % 100 == 0:
+                        train_writer.close()
+                        train_writer = self.create_writers(self.writers_path, '_train_' + str(int(train_i / 100)))
+
                     feature = {'train/label': self._bytes_feature(tf.compat.as_bytes(lbl.tostring())),
                                'train/image': self._bytes_feature(tf.compat.as_bytes(img.tostring()))}
                     example = tf.train.Example(features=tf.train.Features(feature=feature))
                     train_writer.write(example.SerializeToString())
                 else:
+                    val_i += 1
+                    if val_i % 100 == 0:
+                        val_writer.close()
+                        val_writer = self.create_writers(self.writers_path, 'val_' + str(int(val_i/ 100)))
+
                     feature = {'validation/label': self._bytes_feature(tf.compat.as_bytes(lbl.tostring())),
                                'validation/image': self._bytes_feature(tf.compat.as_bytes(img.tostring()))}
                     example = tf.train.Example(features=tf.train.Features(feature=feature))
-                    validation_writer.write(example.SerializeToString())
+                    val_writer.write(example.SerializeToString())
                 i += 1
+            train_writer.close()
+            val_writer.close()
         print()
 
     def _bytes_feature(self, value):
@@ -240,8 +273,9 @@ class ImagenetDataPreparator:
     def decode_data(self, batch_size, mode):
         feature = {mode + '/image': tf.FixedLenFeature([], tf.string),
                    mode + '/label': tf.FixedLenFeature([], tf.string)}
-        filenames = [os.path.join(self.writers_path, '_train.tfrecord') if mode == 'train'
-                     else os.path.join(self.writers_path, '_validation.tfrecord')]
+
+        train_names, val_names = self.get_tf_record_names()
+        filenames = train_names if mode =='train' else val_names
         filename_queue = tf.train.string_input_producer(filenames)
         reader = tf.TFRecordReader()
         _, serialized_example = reader.read(filename_queue)
@@ -269,11 +303,15 @@ class ImagenetDataPreparator:
 
         images, labels = tf.train.shuffle_batch([image, label],
                                                 batch_size=batch_size,
-                                                capacity=400,
+                                                capacity=1000,
                                                 num_threads=4,
-                                                min_after_dequeue=50,
+                                                min_after_dequeue=500,
                                                 allow_smaller_final_batch=True)
         return images, labels
 
+    def get_tf_record_names(self):
+        filenames = os.listdir(self.writers_path)
+        train = [os.path.join(self.writers_path, file) for file in filenames if 'train' in file]
+        val = [os.path.join(self.writers_path, file) for file in filenames if 'val' in file]
+        return train, val
 
-p = ImagenetDataPreparator()
