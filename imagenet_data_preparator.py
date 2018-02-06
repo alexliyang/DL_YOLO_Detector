@@ -17,8 +17,7 @@ class ImagenetDataPreparator:
         self.annotations_path = 'imagenet_data/annotations'
         self.tensor_anno_path = 'imagenet_data/tensor_annotations'
         self.writers_path = 'imagenet_data/tf_records'
-        self.classification_path = 'imagenet_data/classification'
-        self.writers_path = 'imagenet_data/tf_records'
+        self.classification_path = 'imagenet_data/class_tf_records'
 
         self.train_ratio = 0.9
 
@@ -28,57 +27,38 @@ class ImagenetDataPreparator:
             [os.path.join(self.annotations_path, name) for name in os.listdir(self.annotations_path)])
 
         self.create_TFRecords(self.image_names, self.label_names)
-        # todo create_classification_data needs change, because i already have such data! (just convert it to tf records
-        # self.create_classification_data()
-
+        self.create_classification_data()
         print("Dataset ready!")
 
     def create_classification_data(self):
-        xml_labels = [name.replace(self.images_path, self.annotations_path).replace('.jpg', '.xml') for name in
-                      self.image_names]
-        if not os.path.isdir(self.classification_path):
-            os.mkdir(self.classification_path)
+        if os.path.isdir(self.classification_path):
+            print("No need to generate classification TFRecords")
+            return
 
-        if not os.path.isfile(os.path.join(self.classification_path, '_train.tfrecord')):
-            writer = tf.python_io.TFRecordWriter(os.path.join(self.classification_path, '_train.tfrecord'))
-            counter = 0
-            for i, (img, label) in enumerate(zip(self.image_names, xml_labels)):
-                print("\rGenerating classification data (%.2f)" % (i / len(self.image_names)), end='', flush=True)
-                imgname = img
+        os.mkdir(self.classification_path)
+        imnames = [os.path.join(self.images_path, image) for image in os.listdir(self.images_path)]
+        labels = [name.split('/')[-1].replace('.jpg', '') for name in imnames]
+        labels = [''.join([i for i in s if not i.isdigit()])[:-1] for s in labels]
+        labels = [params.imagenet_classes.index(label) for label in labels]
 
-                img = cv2.imread(img)
-                img = (img / 255.0) * 2.0 - 1.0
+        writer = self.create_writers(self.classification_path, 'train_0')
 
-                tree = ET.parse(label)
-                size = tree.find('size')
-                width = int(size.find('width').text)
-                height = int(size.find('height').text)
-                if height == 0 or width == 0:
-                    raise Exception
+        train_i = 0
+        for i, (imgname, label) in enumerate(zip(imnames, labels)):
+            print("\rGenerating classification TFRecords (%.2f)" % (i / len(imnames)), end='', flush=True)
+            img = self.image_read(imgname)
 
-                objs = tree.findall('object')
+            train_i += 1
+            if train_i % 100 == 0:
+                writer.close()
+                writer = self.create_writers(self.classification_path, 'train_' + str(int(train_i / 100)))
 
-                for obj in objs:
-                    counter += 1
-                    bbox = obj.find('bndbox')
-                    x1 = int(bbox.find('xmin').text) - 1
-                    y1 = int(bbox.find('ymin').text) - 1
-                    x2 = int(bbox.find('xmax').text)
-                    y2 = int(bbox.find('ymax').text)
-                    name = obj.find('name').text.lower().strip()
-                    name_en = params.transl[name]
-                    cls_ind = params.classes.index(name_en)
-                    print(i, len(self.image_names), cls_ind, imgname)
-                    ROI = cv2.resize(img[y1:y2, x1:x2], dsize=(params.img_size, params.img_size))
-                    ROI = ROI.astype(np.float32)
-                    feature = {'train/image': self._bytes_feature(tf.compat.as_bytes(ROI.tostring())),
-                               'train/label': self._int64_feature(cls_ind)}
-
-                    example = tf.train.Example(features=tf.train.Features(feature=feature))
-                    writer.write(example.SerializeToString())
-            print()
-        else:
-            print("No need to generate classification data!")
+            feature = {'train/image': self._bytes_feature(tf.compat.as_bytes(img.tostring())),
+                       'train/label': self._int64_feature(label)}
+            example = tf.train.Example(features=tf.train.Features(feature=feature))
+            writer.write(example.SerializeToString())
+        writer.close()
+        print()
 
     @property
     def num_batches(self):
@@ -91,7 +71,10 @@ class ImagenetDataPreparator:
 
     @property
     def num_classification_batches(self):
-        return 3408 // params.cls_batch_size  # precomputed values
+        filenames = [os.path.join(self.classification_path, name) for name in os.listdir(self.classification_path)]
+        # train_len = sum(sum(1 for record in tf.python_io.tf_record_iterator(name)) for name in filenames)
+        train_len = 5734
+        return train_len // params.cls_batch_size
 
     def prepare(self):
         if not os.path.isdir(self.tensor_anno_path):
@@ -291,10 +274,17 @@ class ImagenetDataPreparator:
                                                 allow_smaller_final_batch=True)
         return images, labels
 
+    def get_tf_record_names(self):
+        filenames = os.listdir(self.writers_path)
+        train = [os.path.join(self.writers_path, file) for file in filenames if 'train' in file]
+        val = [os.path.join(self.writers_path, file) for file in filenames if 'val' in file]
+        return train, val
+
     def decode_classification_data(self, batch_size):
         feature = {'train/image': tf.FixedLenFeature([], tf.string),
                    'train/label': tf.FixedLenFeature([], tf.int64)}
-        filename_queue = tf.train.string_input_producer([os.path.join(self.classification_path, '_train.tfrecord')])
+        filenames = [os.path.join(self.classification_path, name) for name in os.listdir(self.classification_path)]
+        filename_queue = tf.train.string_input_producer(filenames)
         reader = tf.TFRecordReader()
         _, serialized_example = reader.read(filename_queue)
         features = tf.parse_single_example(serialized_example, features=feature)
@@ -303,15 +293,8 @@ class ImagenetDataPreparator:
 
         images, labels = tf.train.shuffle_batch([image, label],
                                                 batch_size=batch_size,
-                                                capacity=1000,
+                                                capacity=400,
                                                 num_threads=4,
-                                                min_after_dequeue=500,
+                                                min_after_dequeue=50,
                                                 allow_smaller_final_batch=True)
         return images, labels
-
-    def get_tf_record_names(self):
-        filenames = os.listdir(self.writers_path)
-        train = [os.path.join(self.writers_path, file) for file in filenames if 'train' in file]
-        val = [os.path.join(self.writers_path, file) for file in filenames if 'val' in file]
-        return train, val
-

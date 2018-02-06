@@ -71,7 +71,7 @@ with tf.Session() as sess:
         print(pretrained_classification_model + ' model loaded (fine tuned conv)')
     else:
         saver_conv.restore(sess, conv_weights_path)
-        print(model_name + ' model loaded (pretrained conv)')
+        print('pretrained conv model loaded')
 
     if os.path.isdir(os.path.join('models', model_name + '_D')):
         saver_dense.restore(sess, os.path.join('models', model_name + '_D', 'model.ckpt'))
