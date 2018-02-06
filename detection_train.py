@@ -87,7 +87,7 @@ with tf.Session() as sess:
 
 
     for epoch in range(params.epochs):
-        for batch_idx in range(10):
+        for batch_idx in range(train_batches):
             images, labels = sess.run([train_images, train_labels])
             _, cost, summary = sess.run([train_op, loss, merged],
                                         feed_dict={images_placeholder: images, labels_placeholder: labels,
