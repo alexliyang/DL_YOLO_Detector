@@ -6,8 +6,10 @@ import params
 from architecture import convolution, fully_connected, loss_layer
 from data_preparator import DataPreparator
 from utils import prepare_training_dirs
+import numpy as np
+import cv2
 
-model_name = 'classification_model_2'
+model_name = 'classification_model_4'
 conv_weights_path = 'pretrained_weights/YOLO_small.ckpt'
 
 preparator = DataPreparator()
@@ -26,6 +28,7 @@ labels_palceholder = tf.placeholder(tf.int32, shape=None)
 # layers
 conv = convolution.slim_conv(images_placeholder)
 logits = fully_connected.classification_dense(conv)
+softmax_out = tf.nn.softmax(logits)
 
 # train op
 loss = loss_layer.classification_loss(logits, labels_palceholder)
@@ -57,15 +60,24 @@ with tf.Session() as sess:
 
     writer = tf.summary.FileWriter(os.path.join('classification_summaries', model_name + '_C'), flush_secs=60)
 
+    i = 0
     for epoch in range(params.classification_epochs):
         for batch_idx in range(num_batches):
             images, labels = sess.run([images_feed, labels_feed])
-            _, cost, summary, out = sess.run([train_op, loss, merged, logits],
+            _, cost, summary = sess.run([train_op, loss, merged],
                                         feed_dict={images_placeholder: images,
                                                    labels_palceholder: labels})
             print('\rClassification epoch: %d of %d, batch: %d of %d, loss: %f' % (epoch, params.classification_epochs, batch_idx, num_batches, cost), flush=True, end='')
             writer.add_summary(summary, global_step=epoch * num_batches + batch_idx)
-            writer.flush()
+
+        images = sess.run(images_feed)
+        out = sess.run(softmax_out, feed_dict={images_placeholder: images})
+        for (img, lbl) in zip(images, out):
+            cv2.imwrite('saved_images/' + params.classes[np.argmax(lbl)] + '_' + str(i)+ '.jpg', (img +1.0) * 0.5 * 255)
+            i+=1
+
+
+
         saver_conv.save(sess, os.path.join('models', model_name + '_C', 'model_conv.ckpt'))
         saver_dense.save(sess, os.path.join('models', model_name + '_C', 'model_dense.ckpt'))
 

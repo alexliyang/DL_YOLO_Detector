@@ -26,6 +26,11 @@ class DataPreparator:
 
         print("Dataset ready!")
 
+    def get_tf_record_names(self):
+        filenames = os.listdir(self.writers_path)
+        train = [os.path.join(self.writers_path, file) for file in filenames if 'train' in file]
+        val = [os.path.join(self.writers_path, file) for file in filenames if 'val' in file]
+        return train, val
 
     def create_classification_data(self):
         xml_labels = [name.replace(self.images_path, self.annotations_path).replace('.jpg', '.xml') for name in self.image_names]
@@ -36,9 +41,7 @@ class DataPreparator:
             writer = tf.python_io.TFRecordWriter(os.path.join(self.classification_path, '_train.tfrecord'))
             counter = 0
             for i, (img, label) in enumerate(zip(self.image_names, xml_labels)):
-                # print("\rGenerating classification data (%.2f)" % (i / len(self.image_names)), end='', flush=True)
-                imgname = img
-
+                print("\rGenerating classification data (%.2f)" % (i / len(self.image_names)), end='', flush=True)
                 img = cv2.imread(img)
                 img = (img / 255.0) * 2.0 - 1.0
 
@@ -61,7 +64,6 @@ class DataPreparator:
                     name = obj.find('name').text.lower().strip()
                     name_en = params.transl[name]
                     cls_ind = params.classes.index(name_en)
-                    print(i, len(self.image_names), cls_ind, imgname)
                     ROI = cv2.resize(img[y1:y2, x1:x2], dsize = (params.img_size, params.img_size))
                     ROI = ROI.astype(np.float32)
                     feature = {'train/image': self._bytes_feature(tf.compat.as_bytes(ROI.tostring())),
@@ -155,10 +157,9 @@ class DataPreparator:
 
         return label
 
-    def create_writers(self, writers_folder):
-        train_writer = tf.python_io.TFRecordWriter(os.path.join(writers_folder, '_train.tfrecord'))
-        validation_writer = tf.python_io.TFRecordWriter(os.path.join(writers_folder, '_validation.tfrecord'))
-        return train_writer, validation_writer
+    def create_writers(self, writers_folder, name):
+        writer = tf.python_io.TFRecordWriter(os.path.join(writers_folder, name + '.tfrecord'))
+        return writer
 
     def image_read(self, imname):
         image = cv2.imread(imname)
@@ -169,32 +170,44 @@ class DataPreparator:
 
     def create_TFRecords(self, image_names, label_names):
         if os.path.isdir(self.writers_path):
-            if os.path.isfile(os.path.join(self.writers_path, '_train.tfrecord')) and os.path.isfile(
-                    os.path.join(self.writers_path, '_validation.tfrecord')):
-                print("No need to generate TFRecords")
-                return
+            print("No need to generate TFRecords")
+            return
 
         os.mkdir(self.writers_path)
-
         image_names, label_names = shuffle(image_names, label_names)
-
-        train_writer, validation_writer = self.create_writers(self.writers_path)
         max_train_idx = int(self.train_ratio * len(image_names))
+
+        train_i = 0
+        val_i = 0
+        train_writer = self.create_writers(self.writers_path, 'train_0')
+        val_writer = self.create_writers(self.writers_path, 'val_0')
 
         for i, (imgname, label) in enumerate(zip(image_names, label_names)):
             print("\rGenerating TFRecords (%.2f)" % (i / len(image_names)), end='', flush=True)
             img = self.image_read(imgname)
             lbl = np.load(label).astype(np.float32)
             if i < max_train_idx:
+                train_i +=1
+                if train_i % 100 == 0:
+                    train_writer.close()
+                    train_writer = self.create_writers(self.writers_path, 'train_' + str(int(train_i/100)))
+
                 feature = {'train/label': self._bytes_feature(tf.compat.as_bytes(lbl.tostring())),
                            'train/image': self._bytes_feature(tf.compat.as_bytes(img.tostring()))}
                 example = tf.train.Example(features=tf.train.Features(feature=feature))
                 train_writer.write(example.SerializeToString())
             else:
+                val_i += 1
+                if val_i % 100 == 0:
+                    val_writer.close()
+                    val_writer = self.create_writers(self.writers_path, 'val_' + str(int(val_i/100)))
+
                 feature = {'validation/label': self._bytes_feature(tf.compat.as_bytes(lbl.tostring())),
                            'validation/image': self._bytes_feature(tf.compat.as_bytes(img.tostring()))}
                 example = tf.train.Example(features=tf.train.Features(feature=feature))
-                validation_writer.write(example.SerializeToString())
+                val_writer.write(example.SerializeToString())
+        train_writer.close()
+        val_writer.close()
         print()
 
         # equalize data distribution
@@ -209,6 +222,11 @@ class DataPreparator:
 
             max_train_idx = int(self.train_ratio * to_create)
 
+            train_i = 0
+            val_i = 0
+            train_writer = self.create_writers(self.writers_path, '_train_0')
+            val_writer = self.create_writers(self.writers_path, '_val_0')
+
             for k, (imgname, label) in enumerate(zip(image_names, label_names)):
                 print("\rUpdating TFRecords (%.2f)" % (i / all_to_create), end='', flush=True)
                 img = self.image_read(imgname)
@@ -216,16 +234,28 @@ class DataPreparator:
                 lbl = np.load(label).astype(np.float32)
                 lbl[:, :, 1:5] *= np.random.uniform(0.99, 1.01)
                 if k < max_train_idx:
+                    train_i += 1
+                    if train_i % 100 == 0:
+                        train_writer.close()
+                        train_writer = self.create_writers(self.writers_path, '_train_' + str(int(train_i / 100)))
+
                     feature = {'train/label': self._bytes_feature(tf.compat.as_bytes(lbl.tostring())),
                                'train/image': self._bytes_feature(tf.compat.as_bytes(img.tostring()))}
                     example = tf.train.Example(features=tf.train.Features(feature=feature))
                     train_writer.write(example.SerializeToString())
                 else:
+                    val_i += 1
+                    if val_i % 100 == 0:
+                        val_writer.close()
+                        val_writer = self.create_writers(self.writers_path, 'val_' + str(int(val_i/ 100)))
+
                     feature = {'validation/label': self._bytes_feature(tf.compat.as_bytes(lbl.tostring())),
                                'validation/image': self._bytes_feature(tf.compat.as_bytes(img.tostring()))}
                     example = tf.train.Example(features=tf.train.Features(feature=feature))
-                    validation_writer.write(example.SerializeToString())
+                    val_writer.write(example.SerializeToString())
                 i += 1
+        train_writer.close()
+        val_writer.close()
         print()
 
 
@@ -240,8 +270,9 @@ class DataPreparator:
     def decode_data(self, batch_size, mode):
         feature = {mode + '/image': tf.FixedLenFeature([], tf.string),
                    mode + '/label': tf.FixedLenFeature([], tf.string)}
-        filenames = [os.path.join(self.writers_path, '_train.tfrecord') if mode == 'train'
-                     else os.path.join(self.writers_path, '_validation.tfrecord')]
+
+        train_names, val_names = self.get_tf_record_names()
+        filenames = train_names if mode =='train' else val_names
         filename_queue = tf.train.string_input_producer(filenames)
         reader = tf.TFRecordReader()
         _, serialized_example = reader.read(filename_queue)
@@ -269,8 +300,8 @@ class DataPreparator:
 
         images, labels = tf.train.shuffle_batch([image, label],
                                                 batch_size=batch_size,
-                                                capacity=400,
+                                                capacity=1000,
                                                 num_threads=4,
-                                                min_after_dequeue=50,
+                                                min_after_dequeue=500,
                                                 allow_smaller_final_batch=True)
         return images, labels

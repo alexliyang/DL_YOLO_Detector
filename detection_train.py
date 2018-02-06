@@ -10,7 +10,8 @@ from data_preparator import DataPreparator
 from utils import prepare_training_dirs, draw_boxes
 
 # params
-model_name = 'classification_model5'
+pretrained_classification_model = 'classification_model_4'
+model_name = 'sharded_tf_records'
 conv_weights_path = 'pretrained_weights/YOLO_small.ckpt'
 
 # data generation + dirs preparation
@@ -20,13 +21,13 @@ prepare_training_dirs()
 
 # training data
 train_images, train_labels = preparator.decode_data(params.batch_size, 'train')
-t_channels = tf.unstack(train_images, axis=-1)
-train_images = tf.stack([t_channels[2], t_channels[1], t_channels[0]], axis=-1)
+# t_channels = tf.unstack(train_images, axis=-1)
+# train_images = tf.stack([t_channels[2], t_channels[1], t_channels[0]], axis=-1)
 
 # validation data
 val_images, val_labels = preparator.decode_data(params.batch_size, 'validation')
-v_channels = tf.unstack(train_images, axis=-1)
-val_images = tf.stack([v_channels[2], v_channels[1], v_channels[0]], axis=-1)
+# v_channels = tf.unstack(train_images, axis=-1)
+# val_images = tf.stack([v_channels[2], v_channels[1], v_channels[0]], axis=-1)
 
 # placeholders
 images_placeholder = tf.placeholder(tf.float32, shape=[None, params.img_size, params.img_size, 3])
@@ -35,13 +36,13 @@ dropout_placeholder = tf.placeholder(tf.bool, shape=())
 
 # labels augmentation
 ones = tf.expand_dims(tf.ones_like(labels_placeholder[:, :, :, 0]), 3)
-noise_mask = tf.concat([ones, tf.random_uniform([params.batch_size, params.S, params.S, 4], 0.99, 1.01),
+noise_mask = tf.concat([ones, tf.random_uniform([params.batch_size, params.S, params.S, 4], 0.999, 1.001),
                         tf.tile(ones, [1, 1, 1, params.C])], axis=3)
 noisy_labels = tf.multiply(labels_placeholder, noise_mask)
 
 # images augmentation
 noisy_images = tf.multiply(images_placeholder,
-                           tf.random_uniform([params.batch_size, params.img_size, params.img_size, 3], 0.99, 1.01))
+                           tf.random_uniform([params.batch_size, params.img_size, params.img_size, 3], 0.999, 1.001))
 
 # layers
 conv = convolution.slim_conv(noisy_images)
@@ -68,9 +69,9 @@ with tf.Session() as sess:
     saver_conv = tf.train.Saver(var_list=tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='yolo'))
     saver_dense = tf.train.Saver(var_list=tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='detection_dense'))
 
-    if os.path.isdir(os.path.join('models', model_name + '_C')):
-        saver_conv.restore(sess, os.path.join('models', model_name + '_C', 'model_conv.ckpt'))
-        print(model_name + ' model loaded (fine tuned conv)')
+    if os.path.isdir(os.path.join('models', pretrained_classification_model + '_C')):
+        saver_conv.restore(sess, os.path.join('models', pretrained_classification_model + '_C', 'model_conv.ckpt'))
+        print(pretrained_classification_model + ' model loaded (fine tuned conv)')
     else:
         saver_conv.restore(sess, conv_weights_path)
         print(model_name + ' model loaded (pretrained conv)')
@@ -85,16 +86,15 @@ with tf.Session() as sess:
     train_writer = tf.summary.FileWriter(os.path.join('summaries', model_name + '_T'), sess.graph, flush_secs=60)
     val_writer = tf.summary.FileWriter(os.path.join('summaries', model_name + '_V'), flush_secs=60)
 
-
     for epoch in range(params.epochs):
         for batch_idx in range(train_batches):
             images, labels = sess.run([train_images, train_labels])
             _, cost, summary = sess.run([train_op, loss, merged],
                                         feed_dict={images_placeholder: images, labels_placeholder: labels,
                                                    dropout_placeholder: True})
-            print('\rEpoch: %d of %d, batch: %d of %d, loss: %f' % (epoch, params.epochs, batch_idx, train_batches, cost))
+            print(
+                '\rEpoch: %d of %d, batch: %d of %d, loss: %f' % (epoch, params.epochs, batch_idx, train_batches, cost))
             train_writer.add_summary(summary, global_step=epoch * train_batches + batch_idx)
-            train_writer.flush()
 
         for batch_idx in range(val_batches):
             images, labels = sess.run([val_images, val_labels])
@@ -102,9 +102,8 @@ with tf.Session() as sess:
                                                   dropout_placeholder: False})
 
             val_writer.add_summary(summary, global_step=epoch * val_batches + batch_idx)
-            val_writer.flush()
 
-        saver_dense.save(sess, os.path.join('models', model_name + 'D', 'model.ckpt'))
+        saver_dense.save(sess, os.path.join('models', model_name + '_D', 'model.ckpt'))
 
         images = sess.run(val_images)
         output = sess.run(logits, feed_dict={images_placeholder: images, dropout_placeholder: False})
