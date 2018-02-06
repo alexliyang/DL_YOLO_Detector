@@ -115,7 +115,7 @@ def rename_classification_data(images_path):
 #                           images_path='imagenet_data/images')
 #
 # rename_localization_data(annotations_path='imagenet_data/annotations', images_path='imagenet_data/images')
-
+#
 # extract_classification_data(tars_path='imagenet_data/tars',
 #                             images_path='imagenet_data/classification_images')
 # rename_classification_data(images_path='imagenet_data/classification_images')
