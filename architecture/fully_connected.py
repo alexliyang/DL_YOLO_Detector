@@ -43,14 +43,19 @@ def detection_dense(conv_output, num_classes, dropout_placeholder):
                                 activation=tf.nn.leaky_relu,
                                 kernel_initializer=tf.contrib.layers.xavier_initializer(),
                                 use_bias=True,
-                                kernel_regularizer=tf.contrib.layers.l2_regularizer(1.0))
-        bn = tf.layers.batch_normalization(dense)
+                                kernel_regularizer=tf.contrib.layers.l2_regularizer(0.1))
+        dropout = tf.layers.dropout(dense, training=dropout_placeholder)
+        dense = tf.layers.dense(dropout, 2048,
+                                activation=tf.nn.leaky_relu,
+                                kernel_initializer=tf.contrib.layers.xavier_initializer(),
+                                use_bias=True,
+                                kernel_regularizer=tf.contrib.layers.l2_regularizer(0.1))
         dropout = tf.layers.dropout(dense, training=dropout_placeholder)
         dense = tf.layers.dense(dropout, 4096,
                                 activation=tf.nn.leaky_relu,
                                 kernel_initializer=tf.contrib.layers.xavier_initializer(),
                                 use_bias=True,
-                                kernel_regularizer=tf.contrib.layers.l2_regularizer(1.0))
+                                kernel_regularizer=tf.contrib.layers.l2_regularizer(0.1))
         dropout = tf.layers.dropout(dense, training=dropout_placeholder)
         logits = tf.layers.dense(dropout, num_classes, activation=None)
         return logits
@@ -66,7 +71,6 @@ def classification_dense(conv_output):
         tran = tf.transpose(conv_output, [0, 3, 1, 2])
         flat = tf.layers.flatten(tran)
         dense = tf.layers.dense(flat, 512, activation=tf.nn.leaky_relu)
-        dense = tf.layers.dense(dense, 2048, activation=tf.nn.leaky_relu)
         dense = tf.layers.dense(dense, 2048, activation=tf.nn.leaky_relu)
         dense = tf.layers.dense(dense, 4096, activation=tf.nn.leaky_relu)
         logits = tf.layers.dense(dense, params.C, activation=None)

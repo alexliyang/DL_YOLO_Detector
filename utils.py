@@ -82,7 +82,7 @@ def interpret_output(output):
 
     result = []
     for i in range(len(boxes_filtered)):
-        result.append([params.imagenet_classes[classes_num_filtered[i]], boxes_filtered[i][0], boxes_filtered[i][1],
+        result.append([params.classes[classes_num_filtered[i]], boxes_filtered[i][0], boxes_filtered[i][1],
                        boxes_filtered[i][2], boxes_filtered[i][3], probs_filtered[i]])
 
     return result

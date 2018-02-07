@@ -11,12 +11,12 @@ from imagenet_data_preparator import ImagenetDataPreparator
 from utils import prepare_training_dirs, draw_boxes
 
 # params
-pretrained_classification_model = 'imagenet_C_1'
-model_name = 'imagenet_with_pretrained'
+pretrained_classification_model = 'imagenet_12'
+model_name = 'imagenet_12_single_tfrecord'
 conv_weights_path = 'pretrained_weights/YOLO_small.ckpt'
 
 # data generation + dirs preparation
-preparator = ImagenetDataPreparator()
+preparator = DataPreparator()
 train_batches, val_batches = preparator.num_batches
 prepare_training_dirs()
 
@@ -83,10 +83,8 @@ with tf.Session() as sess:
     train_writer = tf.summary.FileWriter(os.path.join('summaries', model_name + '_T'), sess.graph, flush_secs=60)
     val_writer = tf.summary.FileWriter(os.path.join('summaries', model_name + '_V'), flush_secs=60)
 
-    for epoch in range(10):
-        for batch_idx in range(20):
-    # for epoch in range(params.epochs):
-    #     for batch_idx in range(train_batches):
+    for epoch in range(params.epochs):
+        for batch_idx in range(train_batches):
             images, labels = sess.run([train_images, train_labels])
             _, cost, summary = sess.run([train_op, loss, merged],
                                         feed_dict={images_placeholder: images, labels_placeholder: labels,

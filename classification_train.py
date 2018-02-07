@@ -10,10 +10,10 @@ from utils import prepare_training_dirs
 import numpy as np
 import cv2
 
-model_name = 'imagenet_8'
+model_name = 'imagenet_12'
 conv_weights_path = 'pretrained_weights/YOLO_small.ckpt'
 
-preparator = ImagenetDataPreparator()
+preparator = DataPreparator()
 num_batches = preparator.num_classification_batches
 prepare_training_dirs()
 
@@ -44,7 +44,6 @@ with tf.Session() as sess:
 
     # fine tuned model available
     if os.path.isdir(os.path.join('models', model_name + '_C')):
-
         saver_conv.restore(sess, os.path.join('models', model_name + '_C', 'model_conv.ckpt'))
         saver_dense.restore(sess, os.path.join('models', model_name + '_C', 'model_dense.ckpt'))
         print(model_name + ' model loaded (fine tuned model)')
@@ -72,7 +71,7 @@ with tf.Session() as sess:
         images = sess.run(images_feed)
         out = sess.run(softmax_out, feed_dict={images_placeholder: images})
         for (img, lbl) in zip(images, out):
-            cv2.imwrite('saved_images/' + params.imagenet_classes[np.argmax(lbl)] + '_' + str(i)+ '.jpg', (img +1.0) * 0.5 * 255)
+            cv2.imwrite('saved_images/' + params.classes[np.argmax(lbl)] + '_' + str(i)+ '.jpg', (img +1.0) * 0.5 * 255)
             i+=1
 
         saver_conv.save(sess, os.path.join('models', model_name + '_C', 'model_conv.ckpt'))
