@@ -75,11 +75,11 @@ imagenet_classes = list(set(imagenet_dictionary.values()))
 
 
 # training params
-cls_batch_size = 2
+cls_batch_size = 8
 batch_size = 10
 epochs = 50
-classification_epochs = 50
-classification_eta = 0.0001
+classification_epochs = 10
+classification_eta = 0.0005
 detection_eta = 0.00001
 
 # loss coefficients

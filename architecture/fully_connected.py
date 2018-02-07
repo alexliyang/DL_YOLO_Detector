@@ -66,6 +66,8 @@ def classification_dense(conv_output):
         tran = tf.transpose(conv_output, [0, 3, 1, 2])
         flat = tf.layers.flatten(tran)
         dense = tf.layers.dense(flat, 512, activation=tf.nn.leaky_relu)
+        dense = tf.layers.dense(dense, 2048, activation=tf.nn.leaky_relu)
+        dense = tf.layers.dense(dense, 2048, activation=tf.nn.leaky_relu)
         dense = tf.layers.dense(dense, 4096, activation=tf.nn.leaky_relu)
         logits = tf.layers.dense(dense, params.C, activation=None)
         return logits

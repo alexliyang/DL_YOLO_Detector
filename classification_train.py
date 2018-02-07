@@ -10,7 +10,7 @@ from utils import prepare_training_dirs
 import numpy as np
 import cv2
 
-model_name = 'imagenet_C_1'
+model_name = 'imagenet_8'
 conv_weights_path = 'pretrained_weights/YOLO_small.ckpt'
 
 preparator = ImagenetDataPreparator()
@@ -60,15 +60,13 @@ with tf.Session() as sess:
     writer = tf.summary.FileWriter(os.path.join('classification_summaries', model_name + '_C'), flush_secs=60)
 
     i = 0
-    for epoch in range(10):
-        for batch_idx in range(20):
-    # for epoch in range(params.classification_epochs):
-    #     for batch_idx in range(num_batches):
+    for epoch in range(params.classification_epochs):
+        for batch_idx in range(num_batches):
             images, labels = sess.run([images_feed, labels_feed])
             _, cost, summary = sess.run([train_op, loss, merged],
                                         feed_dict={images_placeholder: images,
                                                    labels_palceholder: labels})
-            print('\rClassification epoch: %d of %d, batch: %d of %d, loss: %f' % (epoch, params.classification_epochs, batch_idx, num_batches, cost), flush=True, end='')
+            print('Classification epoch: %d of %d, batch: %d of %d, loss: %f' % (epoch, params.classification_epochs, batch_idx, num_batches, cost), labels)
             writer.add_summary(summary, global_step=epoch * num_batches + batch_idx)
 
         images = sess.run(images_feed)
