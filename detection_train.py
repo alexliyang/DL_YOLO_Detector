@@ -11,8 +11,8 @@ from imagenet_data_preparator import ImagenetDataPreparator
 from utils import prepare_training_dirs, draw_boxes
 
 # params
-pretrained_classification_model = 'dsadasNone'
-model_name = 'ffsdsdf'
+pretrained_classification_model = 'imagenet_C_1'
+model_name = 'imagenet_with_pretrained'
 conv_weights_path = 'pretrained_weights/YOLO_small.ckpt'
 
 # data generation + dirs preparation
@@ -71,7 +71,7 @@ with tf.Session() as sess:
         print(pretrained_classification_model + ' model loaded (fine tuned conv)')
     else:
         saver_conv.restore(sess, conv_weights_path)
-        print('pretrained conv model loaded')
+        print('Pretrained conv model loaded')
 
     if os.path.isdir(os.path.join('models', model_name + '_D')):
         saver_dense.restore(sess, os.path.join('models', model_name + '_D', 'model.ckpt'))
@@ -83,8 +83,10 @@ with tf.Session() as sess:
     train_writer = tf.summary.FileWriter(os.path.join('summaries', model_name + '_T'), sess.graph, flush_secs=60)
     val_writer = tf.summary.FileWriter(os.path.join('summaries', model_name + '_V'), flush_secs=60)
 
-    for epoch in range(params.epochs):
-        for batch_idx in range(train_batches):
+    for epoch in range(10):
+        for batch_idx in range(20):
+    # for epoch in range(params.epochs):
+    #     for batch_idx in range(train_batches):
             images, labels = sess.run([train_images, train_labels])
             _, cost, summary = sess.run([train_op, loss, merged],
                                         feed_dict={images_placeholder: images, labels_placeholder: labels,
@@ -106,6 +108,7 @@ with tf.Session() as sess:
         output = sess.run(logits, feed_dict={images_placeholder: images, dropout_placeholder: False})
         tagged_img = draw_boxes(images[0], output)
         cv2.imwrite(os.path.join('saved_images', model_name + str(epoch) + '.jpg'), tagged_img)
+        print()
 
     coord.request_stop()
     coord.join(threads)

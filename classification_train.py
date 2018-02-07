@@ -10,7 +10,7 @@ from utils import prepare_training_dirs
 import numpy as np
 import cv2
 
-model_name = 'blah'
+model_name = 'imagenet_C_1'
 conv_weights_path = 'pretrained_weights/YOLO_small.ckpt'
 
 preparator = ImagenetDataPreparator()
@@ -19,8 +19,6 @@ prepare_training_dirs()
 
 # classification data
 images_feed, labels_feed = preparator.decode_classification_data(params.cls_batch_size)
-# c_channels = tf.unstack(images_feed, axis=-1)
-# images_feed = tf.stack([c_channels[2], c_channels[1], c_channels[0]], axis=-1)
 
 # placeholders
 images_placeholder = tf.placeholder(tf.float32, shape=[None, params.img_size, params.img_size, 3])
@@ -53,7 +51,7 @@ with tf.Session() as sess:
     # only pretrained slim weights available
     else:
         saver_conv.restore(sess, conv_weights_path)
-        print(model_name + ' model loaded (pretrained model)')
+        print('Pretrained model loaded')
 
 
     coord = tf.train.Coordinator()
@@ -61,14 +59,11 @@ with tf.Session() as sess:
 
     writer = tf.summary.FileWriter(os.path.join('classification_summaries', model_name + '_C'), flush_secs=60)
 
+    i = 0
+    for epoch in range(10):
+        for batch_idx in range(20):
     # for epoch in range(params.classification_epochs):
     #     for batch_idx in range(num_batches):
-    #         images, labels = sess.run([images_feed, labels_feed])
-    #         print(images.shape, labels.shape)
-
-    i = 0
-    for epoch in range(params.classification_epochs):
-        for batch_idx in range(num_batches):
             images, labels = sess.run([images_feed, labels_feed])
             _, cost, summary = sess.run([train_op, loss, merged],
                                         feed_dict={images_placeholder: images,
@@ -79,11 +74,12 @@ with tf.Session() as sess:
         images = sess.run(images_feed)
         out = sess.run(softmax_out, feed_dict={images_placeholder: images})
         for (img, lbl) in zip(images, out):
-            cv2.imwrite('saved_images/' + params.classes[np.argmax(lbl)] + '_' + str(i)+ '.jpg', (img +1.0) * 0.5 * 255)
+            cv2.imwrite('saved_images/' + params.imagenet_classes[np.argmax(lbl)] + '_' + str(i)+ '.jpg', (img +1.0) * 0.5 * 255)
             i+=1
 
         saver_conv.save(sess, os.path.join('models', model_name + '_C', 'model_conv.ckpt'))
         saver_dense.save(sess, os.path.join('models', model_name + '_C', 'model_dense.ckpt'))
+        print()
 
     coord.request_stop()
     coord.join(threads)
