@@ -9,15 +9,17 @@ import tensorflow as tf
 import params
 
 
-class DataPreparatorBase:
-    def __init__(self, data_root_path, data_url):
+class DataPreparator:
+    def __init__(self, data_root_path, data_url, classes):
         """
         :param data_root_path: parent folder for all data
         :param data_url: link to data in the internet
+        :param classes: list with classes to use
         """
         # things to be specified in implementation
         self.data_root_path = data_root_path
         self.data_url = data_url
+        self.classes = classes
 
         # thing not needing specification
         self.train_ratio = 0.9
@@ -29,12 +31,11 @@ class DataPreparatorBase:
         self.detection_tfrecords_path = None
         self.classification_tfrecords_path = None
 
-        # self.make_dirs() # todo uncomment
-        # self.download_data() #todo uncomment
-        # prepare_valid_data # todo uncomment
-        # distribution, filenames_by_class = self.data_distribution() # todo move it to tensor update
-        # self.generate_classification_tfrecords(params.tf_record_size_limit) todo uncomment
-        # self.generate_detection_tfrecords(params.tf_record_size_limit) todo uncomment
+        self.make_dirs()
+        self.download_data()
+        self.prepare_valid_data(self.classes)
+        # self.generate_classification_tfrecords(params.tf_record_size_limit)
+        # self.generate_detection_tfrecords(params.tf_record_size_limit)
 
     def tf_record_filenames(self, folder_path, suffix=None):
         """
@@ -95,25 +96,34 @@ class DataPreparatorBase:
                 pickle.dump(self.batch_stats, open(batch_stats_path, 'wb'))
                 return count // batch_size
 
-    def make_dirs(self, root_folder):
+    def make_dirs(self):
         """
         Creates all necesarry directories.
         :type root_folder: path to folder that is parent to all needed subfolders
         :return:
         """
+        self.possibly_create_root_path()
+
         needed_folders = ['detection_images', 'detection_annotations', 'classification_images', 'detection_labels',
                           'detection_tfrecords', 'classification_tfrecords']
 
         for folder in needed_folders:
-            if not os.path.isdir(os.path.join(os.path.join(root_folder, folder))):
-                os.mkdir(os.path.join(root_folder, folder))
+            if not os.path.isdir(os.path.join(os.path.join(self.data_root_path, folder))):
+                os.mkdir(os.path.join(self.data_root_path, folder))
 
-        self.detection_images_path = os.path.join(root_folder, 'detection_images')
-        self.detection_annotations_path = os.path.join(root_folder, 'detection_annotations')
-        self.classification_images_path = os.path.join(root_folder, 'classification_images')
-        self.detection_labels_path = os.path.join(root_folder, 'detection_labels')
-        self.detection_tfrecords_path = os.path.join(root_folder, 'detection_tfrecords')
-        self.classification_tfrecords_path = os.path.join(root_folder, 'classification_tfrecords')
+        self.detection_images_path = os.path.join(self.data_root_path, 'detection_images')
+        self.detection_annotations_path = os.path.join(self.data_root_path, 'detection_annotations')
+        self.classification_images_path = os.path.join(self.data_root_path, 'classification_images')
+        self.detection_labels_path = os.path.join(self.data_root_path, 'detection_labels')
+        self.detection_tfrecords_path = os.path.join(self.data_root_path, 'detection_tfrecords')
+        self.classification_tfrecords_path = os.path.join(self.data_root_path, 'classification_tfrecords')
+        
+    def possibly_create_root_path(self):
+        splitted_path = self.data_root_path.split('/')
+        paths = ['/'.join(splitted_path[:(i + 1)]) for i in range(len(splitted_path))]
+        for path in paths:
+            if not os.path.isdir(path):
+                os.mkdir(path)
 
     def data_distribution(self, filenames, name_converter):
         """
@@ -279,11 +289,13 @@ class DataPreparatorBase:
             label[y_ind, x_ind, 5 + index] = 1
         return label
 
-    def prepare_valid_data(self, classes):
+    def prepare_valid_data(self, name_converter, classes):
         """
         Prepares data - extracts only images with annotations etc - after calling this method, data MUST be ready
         to .tfrecord conversion. Implementation strongly depends on dataset.
+        :param name_converter: dictionary that helps to convert one set of names into uniform set (pl -> en, wnid -> eng)
         :param classes: list with classes to use. Might be a mix of many datasets -implementations should take care of it
+        :return image_names, label_names (with paths)
         """
         raise NotImplementedError
 
