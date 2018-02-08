@@ -93,7 +93,9 @@ classes = ['button', 'wrench', 'pliers', 'scissors', 'vial', 'screwdriver', 'tap
 transl = dict(zip(classes_pl, classes))
 C = len(classes)
 
-# todo zwieksz b i s
+tf_record_size_limit = 100
+
+# todo zwieksz b i s - wymaga nowych tf recordow, bo stare maja na stałe zakodowane B i S w labelkach
 B = 2
 S = 7
 num_outputs = S * S * (C + 5 * B)
