@@ -2,10 +2,10 @@ from parameters.specific_params import CustomDatasetParams, ImagenetParams
 
 
 # names
-classification_model_name = 'none'
-detection_model_name = 'none'
-dataset = 'imagenet' # 'imagenet', 'custom'
-root_path = 'data_testy/imagenet_testy' # todo change
+classification_model_name = 'none2'
+detection_model_name = 'none2'
+dataset = 'custom' # 'imagenet', 'custom'
+root_path = '../data_testy/custom'
 
 
 yolo_weights_path = 'models/yolo_pretrained/YOLO_small.ckpt'
