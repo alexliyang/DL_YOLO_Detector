@@ -266,9 +266,9 @@ class ImagenetPreparator(DataPreparator):
             for imgname, label in zip(image_names, label_names):
                 print("\rUpdating TFRecords (%.2f)" % (i / all_to_create), end='', flush=True)
                 img = self.image_read(imgname, params.img_size)
-                img *= np.random.uniform(0.99, 1.01)
+                img *= np.random.uniform(params.augmentation_noise_low, params.augmentation_noise_high)
                 lbl = np.load(label).astype(np.float32)
-                lbl[:, :, 1:5] *= np.random.uniform(0.99, 1.01)
+                lbl[:, :, 1:5] *= np.random.uniform(params.augmentation_noise_low, params.augmentation_noise_high)
                 e = np.random.uniform(0, 1)
                 if e < self.train_ratio:
                     train_i += 1

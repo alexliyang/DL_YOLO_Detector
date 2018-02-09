@@ -151,7 +151,10 @@ class DataPreparator:
 
         filenames_by_class = {}
         for name in filenames:
-            cls = name_from_xml(name)
+            try:
+                cls = name_from_xml(name)
+            except Exception:
+                continue
             if cls in filenames_by_class:
                 filenames_by_class[cls].append(name)
             else:

@@ -6,6 +6,7 @@ import tensorflow as tf
 
 from architecture import convolution, fully_connected, loss_layer
 from data_preparators.imagenet_preparator import ImagenetPreparator
+from data_preparators.custom_data_preparator import CustomDataPreparator
 from parameters import params
 from utils import prepare_before_training
 
@@ -15,6 +16,10 @@ if not os.path.isdir('saved_images/' + params.classification_model_name + '_C'):
     os.mkdir('saved_images/' + params.classification_model_name + '_C')
 if params.dataset == 'imagenet':
     preparator = ImagenetPreparator(data_root_path=params.root_path,
+                                    classes=params.classes,
+                                    name_converter=params.name_converter)
+elif params.dataset == 'custom':
+    preparator = CustomDataPreparator(data_root_path=params.root_path,
                                     classes=params.classes,
                                     name_converter=params.name_converter)
 
