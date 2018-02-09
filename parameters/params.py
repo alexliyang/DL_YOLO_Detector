@@ -7,6 +7,7 @@ detection_model_name = 'none'
 dataset = 'imagenet' # 'imagenet', 'custom'
 root_path = 'data_testy/imagenet_testy' # todo change
 
+
 yolo_weights_path = 'models/yolo_pretrained/YOLO_small.ckpt'
 
 # general params
@@ -18,10 +19,15 @@ detection_batch_size = 10
 detection_epochs = 50
 detection_eta = 0.00001
 
-# 400 and 50 seems ok for detection in imagenet
-capacity = 400
-num_threads = 4
-min_after_deque = 50
+# detection
+d_capacity = 400
+d_num_threads = 4
+d_min_after_deque = 50
+
+# classification
+c_capacity = 400
+c_num_threads = 4
+c_min_after_deque = 50
 
 threshold = 0.01
 IOU_threshold = 0.1
@@ -29,7 +35,8 @@ IOU_threshold = 0.1
 B = 2
 S = 7
 img_size = 448
-tf_record_size_limit = 100
+detection_tf_record_size_limit = 100
+classification_tf_record_size_limit = 100
 
 object_coefficient = 2.0
 no_object_coefficient = 1.0

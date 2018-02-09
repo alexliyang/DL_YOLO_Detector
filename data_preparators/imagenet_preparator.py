@@ -4,7 +4,7 @@ import tarfile
 import numpy as np
 import tensorflow as tf
 from sklearn.utils import shuffle
-
+from utils import download_file_from_google_drive
 from data_preparators.data_preparator import DataPreparator
 from parameters import params
 
@@ -17,7 +17,7 @@ class ImagenetPreparator(DataPreparator):
         tars_path = os.path.join(self.data_root_path, 'tars')
         if not os.path.isdir(tars_path):
             print('ImageNet data needs to be downloaded. Please be patient (file is about 2.4GB)')
-            self.download_file_from_google_drive('1rkqYfK378ixwvEmHUjB_tXU8kua3DwKm', tars_path)
+            download_file_from_google_drive('1rkqYfK378ixwvEmHUjB_tXU8kua3DwKm', tars_path)
             print('ImageNet data downloaded, extracting..')
             with tarfile.open(tars_path) as tar:
                 tar.extractall(self.data_root_path)
@@ -182,7 +182,7 @@ class ImagenetPreparator(DataPreparator):
 
             if size_limit and i % size_limit == 0 and i > 0:
                 writer.close()
-                writer = self.create_record_writer(self.classification_tfrecords_path, 'train_' + str(int(i / 100)))
+                writer = self.create_record_writer(self.classification_tfrecords_path, 'train_' + str(int(i / size_limit)))
 
             feature = {'train/image': self._bytes_feature(tf.compat.as_bytes(img.tostring())),
                        'train/label': self._int64_feature(label)}
@@ -219,7 +219,7 @@ class ImagenetPreparator(DataPreparator):
                 if size_limit and train_i % size_limit == 0 and train_i > 0:
                     train_writer.close()
                     train_writer = self.create_record_writer(self.detection_tfrecords_path,
-                                                             'train_' + str(int(train_i / 100)))
+                                                             'train_' + str(int(train_i / size_limit)))
 
                 feature = {'train/label': self._bytes_feature(tf.compat.as_bytes(label.tostring())),
                            'train/image': self._bytes_feature(tf.compat.as_bytes(image.tostring()))}
@@ -230,7 +230,7 @@ class ImagenetPreparator(DataPreparator):
                 if size_limit and val_i % size_limit == 0 and val_i > 0:
                     val_writer.close()
                     val_writer = self.create_record_writer(self.detection_tfrecords_path,
-                                                           'validation_' + str(int(val_i / 100)))
+                                                           'validation_' + str(int(val_i / size_limit)))
 
                 feature = {'validation/label': self._bytes_feature(tf.compat.as_bytes(label.tostring())),
                            'validation/image': self._bytes_feature(tf.compat.as_bytes(image.tostring()))}
@@ -276,7 +276,7 @@ class ImagenetPreparator(DataPreparator):
                     if size_limit and train_i % size_limit == 0 and train_i > 0:
                         train_writer.close()
                         train_writer = self.create_record_writer(self.detection_tfrecords_path,
-                                                                 '_train_' + str(int(train_i / 100)))
+                                                                 '_train_' + str(int(train_i / size_limit)))
 
                     feature = {'train/label': self._bytes_feature(tf.compat.as_bytes(lbl.tostring())),
                                'train/image': self._bytes_feature(tf.compat.as_bytes(img.tostring()))}
@@ -287,7 +287,7 @@ class ImagenetPreparator(DataPreparator):
                     if size_limit and val_i % size_limit == 0 and val_i > 0:
                         val_writer.close()
                         val_writer = self.create_record_writer(self.detection_tfrecords_path,
-                                                               'validation_' + str(int(val_i / 100)))
+                                                               'validation_' + str(int(val_i / size_limit)))
 
                     feature = {'validation/label': self._bytes_feature(tf.compat.as_bytes(lbl.tostring())),
                                'validation/image': self._bytes_feature(tf.compat.as_bytes(img.tostring()))}

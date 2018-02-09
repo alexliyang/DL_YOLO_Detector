@@ -2,21 +2,50 @@ import os
 import cv2
 import numpy as np
 from parameters import params
+import requests
 
+def download_file_from_google_drive(file_id, dst_path):
+    """
+    Downloads file from Google Drive
+    :param file_id: if of file (given by Google Drive)
+    :param dst_path: where to save files
+    :return:
+    """
+    def get_confirm_token(response):
+        for key, value in response.cookies.items():
+            if key.startswith('download_warning'):
+                return value
+        return None
+
+    def save_response_content(response, destination):
+        CHUNK_SIZE = 32768
+        with open(destination, "wb") as f:
+            for chunk in response.iter_content(CHUNK_SIZE):
+                if chunk:  # filter out keep-alive new chunks
+                    f.write(chunk)
+
+    URL = "https://docs.google.com/uc?export=download"
+    session = requests.Session()
+    response = session.get(URL, params={'id': file_id}, stream=True)
+    token = get_confirm_token(response)
+    if token:
+        params = {'id': file_id, 'confirm': token}
+        response = session.get(URL, params=params, stream=True)
+    save_response_content(response, dst_path)
 
 def prepare_before_training():
     if not os.path.isdir('models'):
         os.mkdir('models')
-        # todo download yolo!!!
+    if not os.path.isdir('models/yolo_pretrained'):
+        os.mkdir('models/yolo_pretrained')
+        print('Pretrained YOLO weights must to be downloaded. Please be patient (file is about 0.5GB)')
+        download_file_from_google_drive('1L6lwpORCHMbU6_eyIu9MWHlvVl12RQgT', params.yolo_weights_path)
     if not os.path.isdir('saved_images'):
         os.mkdir('saved_images')
-    if not os.path.isdir('saved_images/' + params.detection_model_name):
-        os.mkdir('saved_images/' + params.detection_model_name)
     if not os.path.isdir('detection_summaries'):
         os.mkdir('detection_summaries')
     if not os.path.isdir('classification_summaries'):
         os.mkdir('classification_summaries')
-
 
 def draw_result(img, result):
     for i in range(len(result)):
