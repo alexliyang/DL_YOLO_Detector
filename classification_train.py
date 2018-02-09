@@ -32,10 +32,11 @@ images_feed, labels_feed = preparator.decode_classification_data(params.classifi
 # placeholders
 images_placeholder = tf.placeholder(tf.float32, shape=[None, params.img_size, params.img_size, 3])
 labels_palceholder = tf.placeholder(tf.int32, shape=None)
+dropout_placeholder = tf.placeholder(tf.bool, shape=())
 
 # layers
 conv = convolution.slim_conv(images_placeholder)
-logits = fully_connected.classification_dense(conv)
+logits = fully_connected.classification_dense(conv, dropout_placeholder)
 softmax_out = tf.nn.softmax(logits)
 
 # train op
@@ -74,7 +75,8 @@ with tf.Session() as sess:
             images, labels = sess.run([images_feed, labels_feed])
             _, cost, summary = sess.run([train_op, loss, merged],
                                         feed_dict={images_placeholder: images,
-                                                   labels_palceholder: labels})
+                                                   labels_palceholder: labels,
+                                                   dropout_placeholder: True})
             if batch_idx % 10 == 0:
                 print('Classification epoch: %d of %d, batch: %d of %d, loss: %f' % (
                 epoch, params.classification_epochs, batch_idx, num_batches, cost), labels)

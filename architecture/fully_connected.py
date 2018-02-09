@@ -61,7 +61,7 @@ def detection_dense(conv_output, dropout_placeholder):
         return logits
 
 
-def classification_dense(conv_output):
+def classification_dense(conv_output, dropout_placeholder):
     """
     Custom fully connected set of layers, created for classification. Enables training on other sets than original with 20 classes
     :param conv_output: output of convolutional part of network
@@ -70,8 +70,22 @@ def classification_dense(conv_output):
     with tf.variable_scope('classification_dense', reuse=tf.AUTO_REUSE):
         tran = tf.transpose(conv_output, [0, 3, 1, 2])
         flat = tf.layers.flatten(tran)
-        dense = tf.layers.dense(flat, 512, activation=tf.nn.leaky_relu)
-        dense = tf.layers.dense(dense, 2048, activation=tf.nn.leaky_relu)
-        dense = tf.layers.dense(dense, 4096, activation=tf.nn.leaky_relu)
+        dense = tf.layers.dense(flat, 512,
+                                activation=tf.nn.leaky_relu,
+                                kernel_initializer=tf.contrib.layers.xavier_initializer(),
+                                use_bias=True,
+                                kernel_regularizer=tf.contrib.layers.l2_regularizer(0.1))
+        dropout = tf.layers.dropout(dense, training=dropout_placeholder)
+        dense = tf.layers.dense(dropout, 2048,
+                                activation=tf.nn.leaky_relu,
+                                kernel_initializer=tf.contrib.layers.xavier_initializer(),
+                                use_bias=True,
+                                kernel_regularizer=tf.contrib.layers.l2_regularizer(0.1))
+        dropout = tf.layers.dropout(dense, training=dropout_placeholder)
+        dense = tf.layers.dense(dropout, 4096,
+                                activation=tf.nn.leaky_relu,
+                                kernel_initializer=tf.contrib.layers.xavier_initializer(),
+                                use_bias=True,
+                                kernel_regularizer=tf.contrib.layers.l2_regularizer(0.1))
         logits = tf.layers.dense(dense, params.C, activation=None)
         return logits
