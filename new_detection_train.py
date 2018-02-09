@@ -89,8 +89,8 @@ with tf.Session() as sess:
     threads = tf.train.start_queue_runners(coord=coord)
 
     # TB writers
-    train_writer = tf.summary.FileWriter(os.path.join('summaries', params.detection_model_name + '_T'), sess.graph, flush_secs=120)
-    val_writer = tf.summary.FileWriter(os.path.join('summaries', params.detection_model_name + '_V'), flush_secs=120)
+    train_writer = tf.summary.FileWriter(os.path.join('summaries/detection_summaries', params.detection_model_name + '_T'), sess.graph, flush_secs=120)
+    val_writer = tf.summary.FileWriter(os.path.join('summaries/detection_summaries', params.detection_model_name + '_V'), flush_secs=120)
 
     for epoch in range(params.detection_epochs):
         for batch_idx in range(train_batches):

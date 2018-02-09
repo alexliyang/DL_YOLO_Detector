@@ -65,12 +65,12 @@ with tf.Session() as sess:
     coord = tf.train.Coordinator()
     threads = tf.train.start_queue_runners(coord=coord)
 
-    writer = tf.summary.FileWriter(os.path.join('classification_summaries', params.classification_model_name + '_C'),
+    writer = tf.summary.FileWriter(os.path.join('summaries/classification_summaries', params.classification_model_name + '_C'),
                                    flush_secs=120)
 
     i = 0
     for epoch in range(params.classification_epochs):
-        for batch_idx in range(50):
+        for batch_idx in range(num_batches):
             images, labels = sess.run([images_feed, labels_feed])
             _, cost, summary = sess.run([train_op, loss, merged],
                                         feed_dict={images_placeholder: images,

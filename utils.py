@@ -42,10 +42,12 @@ def prepare_before_training():
         download_file_from_google_drive('1L6lwpORCHMbU6_eyIu9MWHlvVl12RQgT', params.yolo_weights_path)
     if not os.path.isdir('saved_images'):
         os.mkdir('saved_images')
-    if not os.path.isdir('detection_summaries'):
-        os.mkdir('detection_summaries')
-    if not os.path.isdir('classification_summaries'):
-        os.mkdir('classification_summaries')
+    if not os.path.isdir('summaries'):
+        os.mkdir('summaries')
+    if not os.path.isdir('summaries/detection_summaries'):
+        os.mkdir('summaries/detection_summaries')
+    if not os.path.isdir('summaries/classification_summaries'):
+        os.mkdir('summaries/classification_summaries')
 
 def draw_result(img, result):
     for i in range(len(result)):
