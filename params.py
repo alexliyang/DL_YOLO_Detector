@@ -71,8 +71,6 @@ imagenet_dictionary = {
     'n02764044': 'axe',
     'n03346289': 'axe',
 }
-imagenet_classes = list(set(imagenet_dictionary.values()))
-
 
 # training params
 cls_batch_size = 5
@@ -109,3 +107,8 @@ threshold = 0.01
 IOU_threshold = 0.1
 # threshold = 0.2
 # IOU_threshold = 0.5
+
+# dataset specific data
+imagenet_root_path = '../data_testy/imagenet_testy' # todo change
+imagenet_data_url = None  # todo fill
+imagenet_classes = list(set(imagenet_dictionary.values()))

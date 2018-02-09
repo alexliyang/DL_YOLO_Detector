@@ -4,6 +4,7 @@ import xml.etree.ElementTree as ET
 
 import cv2
 import numpy as np
+import requests
 import tensorflow as tf
 
 import params
@@ -33,7 +34,7 @@ class DataPreparator:
 
         self.make_dirs()
         self.download_data()
-        self.prepare_valid_data(self.classes)
+        # self.prepare_valid_data(self.classes)
         # self.generate_classification_tfrecords(params.tf_record_size_limit)
         # self.generate_detection_tfrecords(params.tf_record_size_limit)
 
@@ -288,6 +289,35 @@ class DataPreparator:
             label[y_ind, x_ind, 1:5] = boxes
             label[y_ind, x_ind, 5 + index] = 1
         return label
+
+    def download_file_from_google_drive(self, file_id, dst_path):
+        """
+        Downloads file from Google Drive
+        :param file_id: if of file (given by Google Drive)
+        :param dst_path: where to save files
+        :return:
+        """
+        def get_confirm_token(response):
+            for key, value in response.cookies.items():
+                if key.startswith('download_warning'):
+                    return value
+            return None
+
+        def save_response_content(response, destination):
+            CHUNK_SIZE = 32768
+            with open(destination, "wb") as f:
+                for chunk in response.iter_content(CHUNK_SIZE):
+                    if chunk:  # filter out keep-alive new chunks
+                        f.write(chunk)
+
+        URL = "https://docs.google.com/uc?export=download"
+        session = requests.Session()
+        response = session.get(URL, params={'id': file_id}, stream=True)
+        token = get_confirm_token(response)
+        if token:
+            params = {'id': file_id, 'confirm': token}
+            response = session.get(URL, params=params, stream=True)
+        save_response_content(response, dst_path)
 
     def prepare_valid_data(self, name_converter, classes):
         """

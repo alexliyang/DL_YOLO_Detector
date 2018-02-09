@@ -1,7 +1,7 @@
 import os
 
 import numpy as np
-
+import tarfile
 import params
 from data_preparators.data_preparator import DataPreparator
 
@@ -12,9 +12,13 @@ class ImagenetPreparator(DataPreparator):
         Possibly downloads and extracts data.
         """
         if not os.path.isdir(os.path.join(self.data_root_path, 'tars')):
-            print(
-                "Downloading '/tars' data is currently unavailable. Please copy it manually to %s" % self.data_root_path)
-            exit("ERROR: Imagenet data ('tars/) unavaiable")
+            print('ImageNet data needs to be downloaded. Please be patient (file is about 2.4GB)')
+            self.download_file_from_google_drive('1rkqYfK378ixwvEmHUjB_tXU8kua3DwKm', self.data_root_path + '/tars.tar.gz')
+            print('ImageNet data downloaded, extracting..')
+            with tarfile.open(self.data_root_path + '/tars.tar.gz') as tar:
+                tar.extractall(self.data_root_path)
+            print('Cleaning unnecesary files')
+            os.remove(self.data_root_path + '/tars.tar.gz')
 
     def prepare_valid_data(self, name_converter, classes):
         """
