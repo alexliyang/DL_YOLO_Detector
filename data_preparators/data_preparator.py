@@ -7,20 +7,20 @@ import numpy as np
 import requests
 import tensorflow as tf
 
-import params
+from parameters import params
 
 
 class DataPreparator:
-    def __init__(self, data_root_path, data_url, classes):
+    def __init__(self, data_root_path, classes, name_converter):
         """
         :param data_root_path: parent folder for all data
-        :param data_url: link to data in the internet
         :param classes: list with classes to use
+        :param name_converter: dictionary with converions rules (pl>en or wnid>en)
         """
         # things to be specified in implementation
         self.data_root_path = data_root_path
-        self.data_url = data_url
         self.classes = classes
+        self.name_converter = name_converter
 
         # thing not needing specification
         self.train_ratio = 0.9
@@ -31,12 +31,13 @@ class DataPreparator:
         self.detection_labels_path = None
         self.detection_tfrecords_path = None
         self.classification_tfrecords_path = None
+        self.batch_stats_path = None
 
         self.make_dirs()
         self.download_data()
-        # self.prepare_valid_data(self.classes)
+        self.image_names, self.label_names = self.prepare_valid_data(self.name_converter, self.classes)
         # self.generate_classification_tfrecords(params.tf_record_size_limit)
-        # self.generate_detection_tfrecords(params.tf_record_size_limit)
+        self.generate_detection_tfrecords(params.tf_record_size_limit)
 
     def tf_record_filenames(self, folder_path, suffix=None):
         """
@@ -55,7 +56,7 @@ class DataPreparator:
         else:
             return [os.path.join(folder_path, file) for file in filenames]
 
-    def num_batches(self, type, batch_size, batch_stats_path=None, tf_records_path=None):
+    def num_batches(self, type, batch_size):
         """
         Returns number of available batches for data. All the computations are done only once - later they are being read from disc.
         If type is not available (for eg when only one type of tfrecords were recreated) it replaces only that one in pickle
@@ -67,17 +68,15 @@ class DataPreparator:
         """
         possible_keys = ["train", "validation", "classification"]
         suffixes = ["train", "validation", None]
+        tf_records_paths = [self.detection_tfrecords_path, self.detection_tfrecords_path, self.classification_tfrecords_path]
         # if loaded from disc and cached in RAM
         if self.batch_stats and type in self.batch_stats.keys():
             return self.batch_stats[type] // batch_size
 
         # if not cached in RAM, try to load stats from disc
         else:
-            if not batch_stats_path:
-                raise Exception("Path to pickle with batch stats must be specified!")
-
-            if os.path.isfile(batch_stats_path):
-                self.batch_stats = pickle.load(open(batch_stats_path, 'rb'))
+            if os.path.isfile(self.batch_stats_path):
+                self.batch_stats = pickle.load(open(self.batch_stats_path, 'rb'))
             else:
                 self.batch_stats = {}
 
@@ -87,20 +86,19 @@ class DataPreparator:
 
             # if type not available in loaded file, load it and update batch_stats
             else:
-                if not tf_records_path:
-                    raise Exception("Path to tfrecords must be specified!")
+                idx = possible_keys.index(type)
+                tf_records_path = tf_records_paths[possible_keys.index(type)]
 
                 print("Need to calculate '%s' length - it might take some time" % type)
-                filenames = self.tf_record_filenames(tf_records_path, suffixes[possible_keys.index(type)])
+                filenames = self.tf_record_filenames(tf_records_path, suffixes[idx])
                 count = sum(sum(1 for record in tf.python_io.tf_record_iterator(name)) for name in filenames)
                 self.batch_stats[type] = count
-                pickle.dump(self.batch_stats, open(batch_stats_path, 'wb'))
+                pickle.dump(self.batch_stats, open(self.batch_stats_path, 'wb'))
                 return count // batch_size
 
     def make_dirs(self):
         """
-        Creates all necesarry directories.
-        :type root_folder: path to folder that is parent to all needed subfolders
+        Creates all necesarry directories
         :return:
         """
         self.possibly_create_root_path()
@@ -118,7 +116,8 @@ class DataPreparator:
         self.detection_labels_path = os.path.join(self.data_root_path, 'detection_labels')
         self.detection_tfrecords_path = os.path.join(self.data_root_path, 'detection_tfrecords')
         self.classification_tfrecords_path = os.path.join(self.data_root_path, 'classification_tfrecords')
-        
+        self.batch_stats_path = os.path.join(self.data_root_path, 'batch_stats.p')
+
     def possibly_create_root_path(self):
         splitted_path = self.data_root_path.split('/')
         paths = ['/'.join(splitted_path[:(i + 1)]) for i in range(len(splitted_path))]
@@ -152,7 +151,7 @@ class DataPreparator:
 
         filenames_by_class = {}
         for name in filenames:
-            cls = name_from_xml(filenames)
+            cls = name_from_xml(name)
             if cls in filenames_by_class:
                 filenames_by_class[cls].append(name)
             else:
@@ -170,6 +169,7 @@ class DataPreparator:
         """
         image = cv2.imread(imgname)
         image = cv2.resize(image, (img_size, img_size))
+        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB).astype(np.float32)
         image = (image / 255.0) * 2.0 - 1.0
         return image
 
@@ -188,7 +188,7 @@ class DataPreparator:
     def _int64_feature(value):
         return tf.train.Feature(int64_list=tf.train.Int64List(value=[value]))
 
-    def decode__detection_data(self, batch_size, mode, capacity, num_threads, min_after_deque):
+    def decode_detection_data(self, batch_size, mode, capacity, num_threads, min_after_deque):
         """
         Decodes detection tf records on the fly.
         capacity, num_threads, min_after_deque - for shuffle batch
@@ -226,7 +226,6 @@ class DataPreparator:
         Decodes classification tf records on the fly.
         capacity, num_threads, min_after_deque - for shuffle batch
         :param batch_size:
-        :param mode: 'train' or 'validation'
         :return:
         """
         feature = {'train/image': tf.FixedLenFeature([], tf.string),
@@ -297,6 +296,7 @@ class DataPreparator:
         :param dst_path: where to save files
         :return:
         """
+
         def get_confirm_token(response):
             for key, value in response.cookies.items():
                 if key.startswith('download_warning'):

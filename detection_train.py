@@ -6,13 +6,13 @@ import tensorflow as tf
 
 import params
 from architecture import convolution, fully_connected, loss_layer
-from data_preparator import DataPreparator
+from data_preparator2 import DataPreparator
 from imagenet_data_preparator import ImagenetDataPreparator
 from utils import prepare_training_dirs, draw_boxes
 
 # params
 pretrained_classification_model = 'imagenet_12'
-model_name = 'imagenet_12_single_tfrecord'
+model_name = 'imagenet_S13B5'
 conv_weights_path = 'pretrained_weights/YOLO_small.ckpt'
 
 # data generation + dirs preparation
@@ -89,8 +89,8 @@ with tf.Session() as sess:
             _, cost, summary = sess.run([train_op, loss, merged],
                                         feed_dict={images_placeholder: images, labels_placeholder: labels,
                                                    dropout_placeholder: True})
-            print(
-                '\rEpoch: %d of %d, batch: %d of %d, loss: %f' % (epoch, params.epochs, batch_idx, train_batches, cost))
+            if batch_idx % 10 == 0:
+                print('\rEpoch: %d of %d, batch: %d of %d, loss: %f' % (epoch, params.epochs, batch_idx, train_batches, cost))
             train_writer.add_summary(summary, global_step=epoch * train_batches + batch_idx)
 
         for batch_idx in range(val_batches):

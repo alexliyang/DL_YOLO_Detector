@@ -6,7 +6,7 @@ import cv2
 import xml.etree.ElementTree as ET
 import tensorflow as tf
 from sklearn.utils import shuffle
-from statistics import get_distributions
+from statistics_todelete import get_distributions
 import math
 
 class DataPreparator:
@@ -16,12 +16,11 @@ class DataPreparator:
         self.tensor_anno_path = 'data/tensor_annotations'
         self.writers_path = 'data/tf_records'
         self.classification_path = 'data/classification'
-
         self.train_ratio = 0.9
 
         self.image_names, self.label_names = self.prepare()
         self.distribution, self.names_by_classes = get_distributions([name.replace('.jpg', '') for name in os.listdir('data/images')])
-
+        print(self.names_by_classes)
         self.create_TFRecords(self.image_names, self.label_names)
         self.create_classification_data()
 
@@ -309,3 +308,5 @@ class DataPreparator:
                                                 min_after_dequeue=500,
                                                 allow_smaller_final_batch=True)
         return images, labels
+
+p = DataPreparator()

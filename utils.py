@@ -1,14 +1,19 @@
 import os
 import cv2
 import numpy as np
-import params
+from parameters import params
 
 
-def prepare_training_dirs():
+def prepare_before_training():
     if not os.path.isdir('models'):
         os.mkdir('models')
-    if not os.path.isdir('summaries'):
-        os.mkdir('summaries')
+        # todo download yolo!!!
+    if not os.path.isdir('saved_images'):
+        os.mkdir('saved_images')
+    if not os.path.isdir('saved_images/' + params.detection_model_name):
+        os.mkdir('saved_images/' + params.detection_model_name)
+    if not os.path.isdir('detection_summaries'):
+        os.mkdir('detection_summaries')
     if not os.path.isdir('classification_summaries'):
         os.mkdir('classification_summaries')
 

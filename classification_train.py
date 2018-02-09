@@ -4,7 +4,7 @@ import tensorflow as tf
 
 import params
 from architecture import convolution, fully_connected, loss_layer
-from data_preparator import DataPreparator
+from data_preparator2 import DataPreparator
 from imagenet_data_preparator import ImagenetDataPreparator
 from utils import prepare_training_dirs
 import numpy as np

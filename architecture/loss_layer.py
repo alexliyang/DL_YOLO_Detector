@@ -1,6 +1,7 @@
-import tensorflow as tf
-import params
 import numpy as np
+import tensorflow as tf
+
+from parameters import params
 
 
 def calc_iou(boxes1, boxes2):
@@ -34,17 +35,19 @@ def losses(logits, labels):
                                      (params.B, params.S, params.S)), (1, 2, 0))
 
     with tf.variable_scope('loss'):
-        predict_classes = tf.reshape(logits[:, :params.boundary1], [params.batch_size, params.S, params.S, params.C])
+        predict_classes = tf.reshape(logits[:, :params.boundary1],
+                                     [params.detection_batch_size, params.S, params.S, params.C])
         predict_scales = tf.reshape(logits[:, params.boundary1:params.boundary2],
-                                    [params.batch_size, params.S, params.S, params.B])
-        predict_boxes = tf.reshape(logits[:, params.boundary2:], [params.batch_size, params.S, params.S, params.B, 4])
-        response = tf.reshape(labels[:, :, :, 0], [params.batch_size, params.S, params.S, 1])
-        boxes = tf.reshape(labels[:, :, :, 1:5], [params.batch_size, params.S, params.S, 1, 4])
+                                    [params.detection_batch_size, params.S, params.S, params.B])
+        predict_boxes = tf.reshape(logits[:, params.boundary2:],
+                                   [params.detection_batch_size, params.S, params.S, params.B, 4])
+        response = tf.reshape(labels[:, :, :, 0], [params.detection_batch_size, params.S, params.S, 1])
+        boxes = tf.reshape(labels[:, :, :, 1:5], [params.detection_batch_size, params.S, params.S, 1, 4])
         boxes = tf.tile(boxes, [1, 1, 1, params.B, 1]) / params.img_size
         classes = labels[:, :, :, 5:]
         offset = tf.constant(offset, dtype=tf.float32)
         offset = tf.reshape(offset, [1, params.S, params.S, params.B])
-        offset = tf.tile(offset, [params.batch_size, 1, 1, 1])
+        offset = tf.tile(offset, [params.detection_batch_size, 1, 1, 1])
 
         predict_boxes_tran = tf.stack([(predict_boxes[:, :, :, :, 0] + offset) / params.S,
                                        (predict_boxes[:, :, :, :, 1] + tf.transpose(offset, (0, 2, 1, 3))) / params.S,
@@ -80,6 +83,7 @@ def losses(logits, labels):
                                     name='coord_loss') * params.coord_coefficient
 
         return class_loss, object_loss, noobject_loss, coord_loss
+
 
 def classification_loss(logits, labels):
     return tf.losses.sparse_softmax_cross_entropy(labels, logits)

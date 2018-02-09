@@ -1,5 +1,5 @@
 import tensorflow as tf
-import params
+from parameters import params
 
 slim = tf.contrib.slim
 
@@ -30,7 +30,7 @@ def slim_dense(conv_output, num_classes, is_training=False):
             return net
 
 
-def detection_dense(conv_output, num_classes, dropout_placeholder):
+def detection_dense(conv_output, dropout_placeholder):
     """
     Custom fully connected set of layers. Enables training on other sets than original with 20 classes
     :param conv_output: output of convolutional part of network
@@ -57,7 +57,7 @@ def detection_dense(conv_output, num_classes, dropout_placeholder):
                                 use_bias=True,
                                 kernel_regularizer=tf.contrib.layers.l2_regularizer(0.1))
         dropout = tf.layers.dropout(dense, training=dropout_placeholder)
-        logits = tf.layers.dense(dropout, num_classes, activation=None)
+        logits = tf.layers.dense(dropout, params.num_dense_outputs, activation=None)
         return logits
 
 
