@@ -83,7 +83,8 @@ with tf.Session() as sess:
             writer.add_summary(summary, global_step=epoch * num_batches + batch_idx)
 
         images = sess.run(images_feed)
-        out = sess.run(softmax_out, feed_dict={images_placeholder: images})
+        out = sess.run(softmax_out, feed_dict={images_placeholder: images,
+                                               dropout_placeholder: False})
         for (img, lbl) in zip(images, out):
             cv2.imwrite('saved_images/' + params.classification_model_name + '_C/' + params.classes[np.argmax(lbl)] + '_' + str(i) + '.jpg',
                         (img + 1.0) * 0.5 * 255)

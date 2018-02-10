@@ -16,7 +16,7 @@ class ImagenetPreparator(DataPreparator):
         """
         extracted_tars_path = os.path.join(self.data_root_path, 'tars')
         tars_path = os.path.join(self.data_root_path, 'tars.tar.gz')
-        if not os.path.isdir(tars_path):
+        if not os.path.isdir(extracted_tars_path):
             print('ImageNet data needs to be downloaded. Please be patient (file is about 2.4GB)')
             download_file_from_google_drive('1rkqYfK378ixwvEmHUjB_tXU8kua3DwKm', tars_path)
             print('ImageNet data downloaded, extracting..')
