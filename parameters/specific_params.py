@@ -73,7 +73,7 @@ class ImagenetParams:
             'n02764044': 'axe',
             'n03346289': 'axe',
         }
-        self.classes = list(set(self.name_converter.values()))
+        self.classes = sorted(list(set(self.name_converter.values())))
 
 
 class CustomDatasetParams:
@@ -87,4 +87,4 @@ class CustomDatasetParams:
             'srubokret': 'screwdriver',
             'tasma': 'tape',
         }
-        self.classes = list(set(self.name_converter.values()))
+        self.classes = sorted(list(set(self.name_converter.values())))
