@@ -2,8 +2,8 @@ from parameters.specific_params import CustomDatasetParams, ImagenetParams
 
 
 # names
-classification_model_name = 'custom_model_1'
-detection_model_name = 'custom_model_1'
+classification_model_name = 'custom_model_1_laptop'
+detection_model_name = 'custom_model_1_laptop'
 dataset = 'custom' # 'imagenet', 'custom'
 root_path = 'data/' + dataset
 
