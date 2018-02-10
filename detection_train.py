@@ -114,7 +114,7 @@ with tf.Session() as sess:
         images = sess.run(val_images)
         output = sess.run(logits, feed_dict={images_placeholder: images, dropout_placeholder: False})
         tagged_img = draw_boxes(images[0], output)
-        cv2.imwrite(os.path.join('saved_images', params.detection_model_name + '_D' + str(epoch) + '.jpg'), tagged_img)
+        cv2.imwrite(os.path.join('saved_images', params.detection_model_name + '_D',  str(epoch) + '.jpg'), tagged_img)
         print()
 
     coord.request_stop()
