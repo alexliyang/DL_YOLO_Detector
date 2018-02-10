@@ -183,7 +183,7 @@ class CustomDataPreparator(DataPreparator):
             return
 
         xmls = [name.replace(self.detection_images_path, self.detection_annotations_path).replace('.jpg', '.xml') for
-                name in self.train_image_names]
+                name in self.train_image_names + self.validation_image_names]
         writer = self.create_record_writer(self.classification_tfrecords_path, 'train_0')
 
         for i, (img_name, annotation_name) in enumerate(zip(self.train_image_names, xmls)):
