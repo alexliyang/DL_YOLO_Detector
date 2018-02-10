@@ -14,7 +14,8 @@ class ImagenetPreparator(DataPreparator):
         """
         Possibly downloads and extracts data.
         """
-        tars_path = os.path.join(self.data_root_path, 'tars')
+        extracted_tars_path = os.path.join(self.data_root_path, 'tars')
+        tars_path = os.path.join(self.data_root_path, 'tars.tar.gz')
         if not os.path.isdir(tars_path):
             print('ImageNet data needs to be downloaded. Please be patient (file is about 2.4GB)')
             download_file_from_google_drive('1rkqYfK378ixwvEmHUjB_tXU8kua3DwKm', tars_path)
@@ -26,7 +27,7 @@ class ImagenetPreparator(DataPreparator):
 
         if len(os.listdir(self.detection_images_path)) == 0 or len(os.listdir(self.detection_annotations_path)) == 0:
             print('Extracting detection data from .tar files')
-            self.extract_localization_data(tars_path=tars_path,
+            self.extract_localization_data(tars_path=extracted_tars_path,
                                            annotations_path=self.detection_annotations_path,
                                            images_path=self.detection_images_path)
             self.rename_localization_data(annotations_path=self.detection_annotations_path,
@@ -34,7 +35,7 @@ class ImagenetPreparator(DataPreparator):
 
         if len(os.listdir(self.classification_images_path)) == 0:
             print('Extracting classification data from .tar files')
-            self.extract_classification_data(tars_path=tars_path, images_path=self.classification_images_path)
+            self.extract_classification_data(tars_path=extracted_tars_path, images_path=self.classification_images_path)
             self.rename_classification_data(images_path=self.classification_images_path)
 
     def prepare_valid_data(self, name_converter, classes):
