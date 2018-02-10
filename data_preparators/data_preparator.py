@@ -4,7 +4,6 @@ import xml.etree.ElementTree as ET
 
 import cv2
 import numpy as np
-import requests
 import tensorflow as tf
 
 from parameters import params
@@ -35,7 +34,8 @@ class DataPreparator:
 
         self.make_dirs()
         self.download_data()
-        self.image_names, self.label_names = self.prepare_valid_data(self.name_converter, self.classes)
+
+        self.train_image_names, self.train_label_names, self.validation_image_names, self.validation_label_names = self.get_saved_names()
         self.generate_classification_tfrecords(params.classification_tf_record_size_limit)
         self.generate_detection_tfrecords(params.detection_tf_record_size_limit)
 
@@ -68,7 +68,8 @@ class DataPreparator:
         """
         possible_keys = ["train", "validation", "classification"]
         suffixes = ["train", "validation", None]
-        tf_records_paths = [self.detection_tfrecords_path, self.detection_tfrecords_path, self.classification_tfrecords_path]
+        tf_records_paths = [self.detection_tfrecords_path, self.detection_tfrecords_path,
+                            self.classification_tfrecords_path]
         # if loaded from disc and cached in RAM
         if self.batch_stats and type in self.batch_stats.keys():
             return self.batch_stats[type] // batch_size
@@ -298,7 +299,7 @@ class DataPreparator:
         to .tfrecord conversion. Implementation strongly depends on dataset.
         :param name_converter: dictionary that helps to convert one set of names into uniform set (pl -> en, wnid -> eng)
         :param classes: list with classes to use. Might be a mix of many datasets -implementations should take care of it
-        :return image_names, label_names (with paths)
+        :return train_image_names, train_label_names (with paths)
         """
         raise NotImplementedError
 
@@ -324,3 +325,9 @@ class DataPreparator:
         """
         raise NotImplementedError
 
+    def get_saved_names(self):
+        """
+        Returns precomputed filenames of train/validation data
+        :return:
+        """
+        raise NotImplementedError

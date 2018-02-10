@@ -72,10 +72,9 @@ class ImagenetPreparator(DataPreparator):
                 if os.path.isfile(os.path.join(self.detection_images_path, name)):
                     os.remove(os.path.join(self.detection_images_path, name))
 
-        return sorted(
-            [os.path.join(self.detection_images_path, name) for name in os.listdir(self.detection_images_path)]), \
-               sorted(
-                   [os.path.join(self.detection_labels_path, name) for name in os.listdir(self.detection_labels_path)])
+        imnames = sorted([os.path.join(self.detection_images_path, name) for name in os.listdir(self.detection_images_path)])
+        labelnames = sorted([os.path.join(self.detection_labels_path, name) for name in os.listdir(self.detection_labels_path)])
+
 
     def extract_localization_data(self, tars_path, annotations_path, images_path):
         """
