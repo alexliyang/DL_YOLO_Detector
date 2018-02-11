@@ -111,6 +111,9 @@ with tf.Session() as sess:
 
         saver_dense.save(sess, os.path.join('models', params.detection_model_name + '_D', 'model.ckpt'))
 
+        if epoch%10==0 and epoch>0:
+            saver_dense.save(sess, os.path.join('models', params.detection_model_name + '_D', str(epoch) + '_model.ckpt'))
+
         images = sess.run(val_images)
         output = sess.run(logits, feed_dict={images_placeholder: images, dropout_placeholder: False})
         tagged_img = draw_boxes(images[0], output)
