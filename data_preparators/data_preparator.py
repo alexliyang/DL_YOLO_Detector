@@ -35,6 +35,7 @@ class DataPreparator:
         self.make_dirs()
         self.download_data()
 
+        self.prepare_valid_data(self.name_converter, self.classes)
         self.train_image_names, self.train_label_names, self.validation_image_names, self.validation_label_names = self.get_saved_names()
         self.generate_classification_tfrecords(params.classification_tf_record_size_limit)
         self.generate_detection_tfrecords(params.detection_tf_record_size_limit)

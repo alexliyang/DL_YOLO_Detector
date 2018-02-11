@@ -82,9 +82,9 @@ class CustomDataPreparator(DataPreparator):
         # return train_imnames, train_labelnames, validation_imnames, validation_labelnames
 
     def generate_detection_tfrecords(self, size_limit=None):
-        # if len(os.listdir(self.detection_tfrecords_path)) > 0:
-        #     print("No need to generate detection TFRecords")
-        #     return
+        if len(os.listdir(self.detection_tfrecords_path)) > 0:
+            print("No need to generate detection TFRecords")
+            return
 
         self.train_image_names, self.train_label_names = shuffle(self.train_image_names, self.train_label_names)
         self.validation_image_names, self.validation_label_names = shuffle(self.validation_image_names, self.validation_label_names)
