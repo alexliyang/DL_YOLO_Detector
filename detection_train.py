@@ -111,7 +111,7 @@ with tf.Session() as sess:
 
         saver_dense.save(sess, os.path.join('models', params.detection_model_name + '_D', 'model.ckpt'))
 
-        if epoch%10==0 and epoch>0:
+        if epoch % 10 == 0 and epoch > 0:
             saver_dense.save(sess, os.path.join('models', params.detection_model_name + '_D', str(epoch) + '_model.ckpt'))
 
         images, labels = sess.run([val_images, val_labels])
