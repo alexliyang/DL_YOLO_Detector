@@ -114,9 +114,9 @@ with tf.Session() as sess:
         if epoch%10==0 and epoch>0:
             saver_dense.save(sess, os.path.join('models', params.detection_model_name + '_D', str(epoch) + '_model.ckpt'))
 
-        images = sess.run(val_images)
+        images, labels = sess.run([val_images, val_labels])
         output = sess.run(logits, feed_dict={images_placeholder: images, dropout_placeholder: False})
-        tagged_img = draw_boxes(images[0], output)
+        tagged_img = draw_boxes(images[0], output, labels[0]) # labels[0] or None
         cv2.imwrite(os.path.join('saved_images', params.detection_model_name + '_D',  str(epoch) + '.jpg'), tagged_img)
         print()
 
