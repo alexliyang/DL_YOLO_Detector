@@ -132,7 +132,7 @@ def net_readable_img(img):
     return img
 
 
-def draw_boxes(img, logits, GT_label):
+def draw_boxes(img, logits, GT_label, printable_result=True):
     """
     Draws predicted boxes on image. if GT label is None, doesnt draw ground truth label
     :param img:
@@ -143,7 +143,8 @@ def draw_boxes(img, logits, GT_label):
     img_h = img.shape[0]
     img_w = img.shape[1]
     result = interpret_output(logits[0, ...])
-    print(result)
+    if printable_result:
+        print(result)
     for i in range(len(result)):
         result[i][1] *= (1.0 * img_w / params.img_size)
         result[i][2] *= (1.0 * img_h / params.img_size)
@@ -165,15 +166,3 @@ def draw_boxes(img, logits, GT_label):
             tagged_img = cv2.rectangle(tagged_img, (obj_x1, obj_y1), (obj_x2, obj_y2), color = (0,0,1), thickness=2)
 
     return (tagged_img + 1.0) / 2 * 255
-
-def draw_video_boxes(img, logits):
-    img_h = img.shape[0]
-    img_w = img.shape[1]
-    result = interpret_output(logits[0, ...])
-    for i in range(len(result)):
-        result[i][1] *= (1.0 * img_w / params.img_size)
-        result[i][2] *= (1.0 * img_h / params.img_size)
-        result[i][3] *= (1.0 * img_w / params.img_size)
-        result[i][4] *= (1.0 * img_h / params.img_size)
-    tagged_img = draw_result(img, result)
-    return (tagged_img + 1.0) / 2
