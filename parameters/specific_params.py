@@ -88,3 +88,17 @@ class CustomDatasetParams:
             'tasma': 'tape',
         }
         self.classes = sorted(list(set(self.name_converter.values())))
+
+
+class MixedDatasetParams:
+    def __init__(self):
+        self.name_converter = None
+        imagenet = ImagenetParams()
+        custom = CustomDatasetParams()
+
+        self.imagent_classes = imagenet.classes
+        self.custom_classes = custom.classes
+
+        self.classes = sorted(list(set(self.custom_classes).union(self.imagent_classes)))
+
+

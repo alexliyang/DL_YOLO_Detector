@@ -5,6 +5,7 @@ import tensorflow as tf
 from architecture import convolution, fully_connected, loss_layer
 from data_preparators.imagenet_preparator import ImagenetPreparator
 from data_preparators.custom_data_preparator import CustomDataPreparator
+from data_preparators.mixed_preparator import MixedPreparator
 from parameters import params
 from utils import prepare_before_training, draw_boxes
 
@@ -20,6 +21,8 @@ elif params.dataset == 'custom':
     preparator = CustomDataPreparator(data_root_path=params.root_path,
                                     classes=params.classes,
                                     name_converter=params.name_converter)
+elif params.dataset == 'mixed':
+    preparator = MixedPreparator('data/custom', 'data/imagenet')
 
 train_batches = preparator.num_batches(type='train', batch_size=params.detection_batch_size)
 val_batches = preparator.num_batches(type='validation', batch_size=params.detection_batch_size)

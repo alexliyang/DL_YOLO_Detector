@@ -1,12 +1,11 @@
-from parameters.specific_params import CustomDatasetParams, ImagenetParams
+from parameters.specific_params import CustomDatasetParams, ImagenetParams, MixedDatasetParams
 
 
 # names
 classification_model_name = 'custom_model_1_laptop'
-detection_model_name = 'custom_model_1_B2_S13'
-dataset = 'custom' # 'imagenet', 'custom'
+detection_model_name = 'mixed_model'
+dataset = 'imagenet' # 'imagenet', 'custom', 'mixed'
 root_path = 'data/' + dataset
-
 
 yolo_weights_path = 'models/yolo_pretrained/YOLO_small.ckpt'
 
@@ -29,7 +28,7 @@ c_capacity = 400
 c_num_threads = 4
 c_min_after_deque = 50
 
-threshold = 0.01
+threshold = 0.05
 IOU_threshold = 0.1
 
 B = 2
@@ -51,6 +50,8 @@ if dataset=='imagenet':
     specific_params = ImagenetParams()
 elif dataset == 'custom':
     specific_params = CustomDatasetParams()
+elif dataset == 'mixed':
+    specific_params = MixedDatasetParams()
 
 name_converter = specific_params.name_converter
 classes = specific_params.classes
