@@ -1,6 +1,8 @@
 import numpy as np
 import xml.etree.ElementTree as ET
 import cv2
+import pickle
+from sklearn.utils import shuffle
 import os
 def xml_as_tensor(xml_path, dst_img_size, name_converter, classes):
     """
@@ -34,28 +36,53 @@ def generate_cell_net_data(root_folder, img_size, name_converter, classes):
     images_path = 'data/imagenet/detection_images/'
     xmls_path = 'data/imagenet/detection_annotations/'
 
-    images_filenames = sorted([images_path + name for name in os.listdir(images_path)])
-    xmls_filenames = sorted([xmls_path + name for name in os.listdir(xmls_path)])
+    t_images_dir = os.path.join(root_folder, 'train_images')
+    t_labels_dir = os.path.join(root_folder, 'train_labels')
+    v_images_dir = os.path.join(root_folder, 'val_images')
+    v_labels_dir = os.path.join(root_folder, 'val_labels')
 
-    images_dir = os.path.join(root_folder, 'images')
-    labels_dir = os.path.join(root_folder, 'labels')
+    if not os.path.isdir(t_images_dir):
+        os.mkdir(t_images_dir)
+    if not os.path.isdir(t_labels_dir):
+        os.mkdir(t_labels_dir)
+    if not os.path.isdir(v_images_dir):
+        os.mkdir(v_images_dir)
+    if not os.path.isdir(v_labels_dir):
+        os.mkdir(v_labels_dir)
 
-    if not os.path.isdir(root_folder):
-        os.mkdir(root_folder)
-    # subfolders
-    if not os.path.isdir(images_dir):
-        os.mkdir(images_dir)
-    if not os.path.isdir(labels_dir):
-        os.mkdir(labels_dir)
+    # # one time process, don't use it
+    # images_filenames = sorted([images_path + name for name in os.listdir(images_path)])
+    # xmls_filenames = sorted([xmls_path + name for name in os.listdir(xmls_path)])
+    # images_filenames, xmls_filenames = shuffle(images_filenames, xmls_filenames)
+    # t_images_filenames = images_filenames[:int(0.9 * len(images_filenames))]
+    # t_xmls_filenames = xmls_filenames[:int(0.9 * len(xmls_filenames))]
+    # v_images_filenames = images_filenames[int(0.9 * len(images_filenames)):]
+    # v_xmls_filenames = xmls_filenames[int(0.9 * len(xmls_filenames)):]
+    # pickle.dump([t_images_filenames, t_xmls_filenames, v_images_filenames, v_xmls_filenames], open(os.path.join(root_folder, 'dataset_info.p'), 'wb'))
 
-    for i, (imagename, xmlname) in enumerate(zip(images_filenames, xmls_filenames)):
-        print(i, 'of', len(images_filenames))
+    t_images_filenames, t_xmls_filenames, v_images_filenames, v_xmls_filenames = pickle.load(open(os.path.join(root_folder, 'dataset_info.p'), 'rb'))
+
+    # train data
+    for i, (imagename, xmlname) in enumerate(zip(t_images_filenames, t_xmls_filenames)):
+        print('\rTraining data: %d of %d' % (i, len(t_images_filenames)), end='', flush=True)
         img = cv2.imread(imagename)
         img = cv2.resize(img, dsize=(img_size, img_size))
         label = xml_as_tensor(xmlname, img_size, name_converter, classes)
 
-        cv2.imwrite(os.path.join(images_dir, str(i) + '.jpg'), img)
-        np.save(os.path.join(labels_dir, str(i) + '.npy'), label)
+        cv2.imwrite(os.path.join(t_images_dir, str(i) + '.jpg'), img)
+        np.save(os.path.join(t_labels_dir, str(i) + '.npy'), label)
+
+    # validation data
+    for i, (imagename, xmlname) in enumerate(zip(v_images_filenames, v_xmls_filenames)):
+        print('\rValidation data: %d of %d' % (i, len(v_images_filenames)), end='', flush=True)
+        img = cv2.imread(imagename)
+        img = cv2.resize(img, dsize=(img_size, img_size))
+        label = xml_as_tensor(xmlname, img_size, name_converter, classes)
+
+        cv2.imwrite(os.path.join(v_images_dir, str(i) + '.jpg'), img)
+        np.save(os.path.join(v_labels_dir, str(i) + '.npy'), label)
+
+
 
 def resize_label(label, S, C, src_img_size, threshold_area):
     resized_label = np.zeros([S, S, C], dtype=np.float32)
@@ -92,3 +119,9 @@ def embed_output(float_img, logits, threshold, S, src_img_size):
             output[y_s: y_e, x_s: x_e] *= overlay[y, x]
     output = np.stack([np.zeros_like(output), output, np.zeros_like(output)], axis=2)
     return cv2.addWeighted(float_img, 0.6, output, 0.4, 0)
+
+def possibly_create_dirs(embedded_images_path, model_to_save_path):
+    if not os.path.isdir(embedded_images_path):
+        os.mkdir(embedded_images_path)
+    if not os.path.isdir(model_to_save_path):
+        os.mkdir(model_to_save_path)
