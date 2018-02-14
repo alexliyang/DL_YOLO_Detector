@@ -39,10 +39,10 @@ embedded_images_path = 'cell_data/output_images/'
 possibly_create_dirs(embedded_images_path, model_to_save_path)
 
 # delete if generated!!
-train_image_filenames = sorted([t_images_path + name for name in os.listdir(t_images_path)])
-train_labels_filenames = sorted([t_labels_path + name for name in os.listdir(t_labels_path)])
-for i in range(augmentations):
-    create_augmented_tf_records(i, train_image_filenames, train_labels_filenames, train_records_path, tfrecord_length , S, threshold_area)
+# train_image_filenames = sorted([t_images_path + name for name in os.listdir(t_images_path)])
+# train_labels_filenames = sorted([t_labels_path + name for name in os.listdir(t_labels_path)])
+# for i in range(augmentations):
+#     create_augmented_tf_records(i, train_image_filenames, train_labels_filenames, train_records_path, tfrecord_length , S, threshold_area)
 
 val_image_filenames = sorted([v_images_path + name for name in os.listdir(v_images_path)])
 val_labels_filenames = sorted([v_labels_path + name for name in os.listdir(v_labels_path)])
@@ -100,7 +100,7 @@ with tf.Session() as sess:
             images, labels = sess.run([train_images, train_labels])
             _, cost, summary = sess.run([train_op, loss, merged], feed_dict={images_placeholder: images,
                                                                              labels_placeholder: labels})
-            print('train', epoch, batch_idx, cost)
+            print('\rTraining, epoch: %d of %d, batch: %d of %d, loss: %f' % (epoch, epochs, batch_idx, num_batches_t, cost))
             train_writer.add_summary(summary, epoch * batch_size + batch_idx)
             train_writer.flush()
 
@@ -120,7 +120,7 @@ with tf.Session() as sess:
 
             summary = sess.run(merged, feed_dict={images_placeholder: images,
                                                   labels_placeholder: labels})
-            print('validation', epoch, batch_idx)
+            print('\rValidation, epoch: %d of %d, batch: %d of %d' % (epoch, epochs, batch_idx, num_batches_v))
             val_writer.add_summary(summary, epoch * batch_size + batch_idx)
             val_writer.flush()
 
