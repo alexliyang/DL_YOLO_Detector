@@ -107,7 +107,8 @@ def image_read(imgname):
 def embed_output(float_img, logits, threshold, S, src_img_size):
     logits[logits >= threshold] = 1
     logits[logits < threshold] = 0
-    # tymczasowo scalam wszystko do jednego, dla celow debugowania
+
+    step = int(src_img_size / S)
     overlay = np.max(logits, axis = 2)
     output = np.ones_like(float_img)[..., 0]
     for y in range(S):
@@ -118,7 +119,18 @@ def embed_output(float_img, logits, threshold, S, src_img_size):
             y_e = int((y + 1) * src_img_size / S)
             output[y_s: y_e, x_s: x_e] *= overlay[y, x]
     output = np.stack([np.zeros_like(output), output, np.zeros_like(output)], axis=2)
-    return cv2.addWeighted(float_img, 0.6, output, 0.4, 0)
+    output = cv2.addWeighted(float_img, 0.6, output, 0.4, 0)
+
+    # {0: 'axe', 1: 'bottle', 2: 'broom', 3: 'button', 4: 'driller', 5: 'hammer', 6: 'light_bulb', 7: 'nail', 8: 'pliers',
+    #  9: 'scissors', 10: 'screw', 11: 'screwdriver', 12: 'tape', 13: 'vial', 14: 'wrench'}
+
+    for y in range(S):
+        for x in range(S):
+            for c in range(logits.shape[-1]):
+                if logits[y, x, c] == 1:
+                    output = cv2.putText(output, str(c), (x * step + 10, y * step + 20), cv2.FONT_HERSHEY_COMPLEX, 0.6, (0,0,0), 1)
+
+    return output
 
 def possibly_create_dirs(embedded_images_path, model_to_save_path):
     if not os.path.isdir(embedded_images_path):

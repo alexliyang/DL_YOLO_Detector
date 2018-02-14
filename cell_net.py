@@ -81,7 +81,7 @@ with tf.Session() as sess:
     val_writer = tf.summary.FileWriter('summaries/cell_network/' + model_to_save_path.replace('models/', '') + '_V',
                                        sess.graph)
 
-    for epoch in range(5):
+    for epoch in range(100):
         idx = randint(0, val_data_len - 1)
         image = image_read(train_image_filenames[idx])
         label = resize_label(np.load(train_labels_filenames[idx]), S, params.C, params.img_size, threshold_area)
