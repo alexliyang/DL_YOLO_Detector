@@ -6,28 +6,29 @@ import numpy as np
 import tensorflow as tf
 
 from architecture.convolution import conv_model
-from cell_net_utils import resize_label, image_read, embed_output, possibly_create_dirs, decode_train_data, augment_rotate, augment_crop, augment_translate, augment_stack, create_augmented_tf_records
+from cell_net_utils import resize_label, image_read, embed_output, possibly_create_dirs, decode_train_data, \
+    augment_rotate, augment_crop, augment_translate, augment_stack, create_augmented_tf_records, generate_cell_net_data
 from parameters import params
 
 
 # use if data was not generated
-# generate_cell_net_data('cell_data', params.img_size, params.name_converter, params.classes)
+#generate_cell_net_data('cell_data', params.img_size, params.name_converter, params.classes)
 
 # params
 S = 14  # match with conv output
 eta = 0.00001
 threshold_area = int(params.img_size / S) ** 2 / 2
-batch_size = 5
+batch_size = 20
 epochs = 50
+img_save_checkpoint = 500
 tfrecord_length = 10
-capacity = 100
+capacity = 400
 num_threads = 1
-min_after_deque = 20
-augmentations = 1# number of dataset augmentations
+min_after_deque = 50
 
 # paths
 yolo_weights_path = 'models/yolo_pretrained/YOLO_small.ckpt'
-model_to_save_path = 'models/cellnet2'
+model_to_save_path = 'models/cellnet4'
 pretrained_model_path = None
 
 t_images_path = 'cell_data/train_images/'
@@ -39,16 +40,17 @@ embedded_images_path = 'cell_data/output_images/'
 possibly_create_dirs(embedded_images_path, model_to_save_path)
 
 # delete if generated!!
-# train_image_filenames = sorted([t_images_path + name for name in os.listdir(t_images_path)])
-# train_labels_filenames = sorted([t_labels_path + name for name in os.listdir(t_labels_path)])
-# for i in range(augmentations):
-#     create_augmented_tf_records(i, train_image_filenames, train_labels_filenames, train_records_path, tfrecord_length , S, threshold_area)
+#augmentations = 10# number of dataset augmentations
+#train_image_filenames = sorted([t_images_path + name for name in os.listdir(t_images_path)])
+#train_labels_filenames = sorted([t_labels_path + name for name in os.listdir(t_labels_path)])
+#for i in range(augmentations):
+#    create_augmented_tf_records(i, train_image_filenames, train_labels_filenames, train_records_path, tfrecord_length , S, threshold_area)
 
 val_image_filenames = sorted([v_images_path + name for name in os.listdir(v_images_path)])
 val_labels_filenames = sorted([v_labels_path + name for name in os.listdir(v_labels_path)])
 val_data_len = len(val_image_filenames)
 
-num_batches_t = len(os.listdir(train_records_path)) * augmentations * tfrecord_length // batch_size
+num_batches_t = len(os.listdir(train_records_path)) * tfrecord_length // batch_size
 num_batches_v = val_data_len // batch_size
 
 # model
@@ -104,7 +106,7 @@ with tf.Session() as sess:
             train_writer.add_summary(summary, epoch * batch_size + batch_idx)
             train_writer.flush()
 
-            if batch_idx % 100 == 0:
+            if batch_idx % img_save_checkpoint == 0:
                 image = image_read(val_image_filenames[randint(0, val_data_len - 1)])
                 output = sess.run(sigmoid_output, feed_dict={images_placeholder: [image]})
                 embedded_output = embed_output((image + 1) / 2, output[0], 0.3, S, params.img_size)
