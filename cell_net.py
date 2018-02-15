@@ -18,7 +18,7 @@ from parameters import params
 S = 14  # match with conv output
 eta = 0.00001
 threshold_area = int(params.img_size / S) ** 2 / 2
-batch_size = 20
+batch_size = 15
 epochs = 50
 img_save_checkpoint = 500
 tfrecord_length = 10
@@ -28,7 +28,7 @@ min_after_deque = 50
 
 # paths
 yolo_weights_path = 'models/yolo_pretrained/YOLO_small.ckpt'
-model_to_save_path = 'models/cellnet4'
+model_to_save_path = 'models/cell_network_15_02_eta0_00001_adam_50epochs_batch10'
 pretrained_model_path = None
 
 t_images_path = 'cell_data/train_images/'
@@ -103,13 +103,13 @@ with tf.Session() as sess:
             _, cost, summary = sess.run([train_op, loss, merged], feed_dict={images_placeholder: images,
                                                                              labels_placeholder: labels})
             print('\rTraining, epoch: %d of %d, batch: %d of %d, loss: %f' % (epoch, epochs, batch_idx, num_batches_t, cost))
-            train_writer.add_summary(summary, epoch * batch_size + batch_idx)
+            train_writer.add_summary(summary, epoch * num_batches_t + batch_idx)
             train_writer.flush()
 
             if batch_idx % img_save_checkpoint == 0:
                 image = image_read(val_image_filenames[randint(0, val_data_len - 1)])
                 output = sess.run(sigmoid_output, feed_dict={images_placeholder: [image]})
-                embedded_output = embed_output((image + 1) / 2, output[0], 0.3, S, params.img_size)
+                embedded_output = embed_output((image + 1) / 2, output[0], 0.5, S, params.img_size)
                 cv2.imwrite(embedded_images_path + '_' + str(epoch) + '_' + str(batch_idx) + '.jpg',
                             embedded_output * 255.0)
 
@@ -123,7 +123,7 @@ with tf.Session() as sess:
             summary = sess.run(merged, feed_dict={images_placeholder: images,
                                                   labels_placeholder: labels})
             print('\rValidation, epoch: %d of %d, batch: %d of %d' % (epoch, epochs, batch_idx, num_batches_v))
-            val_writer.add_summary(summary, epoch * batch_size + batch_idx)
+            val_writer.add_summary(summary, epoch * num_batches_v + batch_idx)
             val_writer.flush()
 
         saver.save(sess, os.path.join(model_to_save_path, 'model.ckpt'))
