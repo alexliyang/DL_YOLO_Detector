@@ -1,13 +1,24 @@
-import random
-import tensorflow as tf
-import numpy as np
-import xml.etree.ElementTree as ET
-import cv2
+import os
 import pickle
+import random
+import xml.etree.ElementTree as ET
+
+import cv2
+import numpy as np
+import tensorflow as tf
+from sklearn.utils import shuffle
+
 from parameters import params
 
-from sklearn.utils import shuffle
-import os
+colours = [[1, 0, 0], [0, 0, 1], [0, 1, 0],
+           [0.81, 0.89, 0.25], [0, 0.647, 1],
+           [0.502, 0, 0.502], [0.196, 0.804, 0.196],
+           [0.439, 0.01, 0.01], [0.663, 0.663, 0.663],
+           [0.118, 0.412, 0.824], [0, 0, 0.5],
+           [0.310, 0.310, 0.184], [0, 0.502, 0.502],
+           [1, 0, 1], [0.769, 0.894, 1]]
+
+
 def xml_as_tensor(xml_path, dst_img_size, name_converter, classes):
     """
     Returns presence tensor [img-size, img_size, C] encoded as one hot, where objects are present
@@ -35,6 +46,7 @@ def xml_as_tensor(xml_path, dst_img_size, name_converter, classes):
         label[ymin: ymax, xmin: xmax, class_index] = 1
 
     return label
+
 
 def generate_cell_net_data(root_folder, img_size, name_converter, classes):
     images_path = 'data/imagenet/detection_images/'
@@ -64,7 +76,8 @@ def generate_cell_net_data(root_folder, img_size, name_converter, classes):
     # v_xmls_filenames = xmls_filenames[int(0.9 * len(xmls_filenames)):]
     # pickle.dump([t_images_filenames, t_xmls_filenames, v_images_filenames, v_xmls_filenames], open(os.path.join(root_folder, 'dataset_info.p'), 'wb'))
 
-    t_images_filenames, t_xmls_filenames, v_images_filenames, v_xmls_filenames = pickle.load(open(os.path.join(root_folder, 'dataset_info.p'), 'rb'))
+    t_images_filenames, t_xmls_filenames, v_images_filenames, v_xmls_filenames = pickle.load(
+        open(os.path.join(root_folder, 'dataset_info.p'), 'rb'))
 
     # train data
     for i, (imagename, xmlname) in enumerate(zip(t_images_filenames, t_xmls_filenames)):
@@ -86,6 +99,7 @@ def generate_cell_net_data(root_folder, img_size, name_converter, classes):
         cv2.imwrite(os.path.join(v_images_dir, str(i) + '.jpg'), img)
         np.save(os.path.join(v_labels_dir, str(i) + '.npy'), label)
 
+
 def resize_label(label, S, C, src_img_size, threshold_area):
     resized_label = np.zeros([S, S, C], dtype=np.float32)
     for y in range(S):
@@ -101,18 +115,75 @@ def resize_label(label, S, C, src_img_size, threshold_area):
             resized_label[y, x] = sums
     return resized_label
 
+
 def image_read(imgname):
     image = cv2.imread(imgname)
     image = (image / 255.0) * 2.0 - 1.0
     return image
 
-def embed_output(float_img, logits, threshold, S, src_img_size):
-    logits[logits >= threshold] = 1
-    logits[logits < threshold] = 0
 
+def remove_outliers(thresh_logits, min_num_neighbours=1):
+    """
+    Removes outlying values, for eg ones that have no neighbours
+    :param thresh_logits: thresholded logit
+    :param min_num_neighbours: minimum number of neighboiuring pixels
+    :return: cleaned logits
+    """
+    kernel = np.ones((3, 3), np.float32)
+    cleaned_logits = cv2.filter2D(thresh_logits, -1, kernel)
+    thresh_logits[cleaned_logits <= min_num_neighbours] = 0
+    return thresh_logits
+
+
+def get_bounding_boxes(thresh_logits, logits, S, src_img_size, min_contour_area=2.0):
+    """
+    Creates list of bounding boxes
+    :param logits: real valued logits (needed to compute confidence
+    :param thresh_logits: binary logits (0 or 1)
+    :param S: number of cells per side
+    :param src_img_size: size of image
+    :return: list of bounding boxes, each box: [x1, y1, x2, y2, class]
+    """
     step = int(src_img_size / S)
-    overlay = np.max(logits, axis = 2)
-    output = np.ones_like(float_img)[..., 0]
+
+    # find contours and appropriate bounding boxes
+    bounding_boxes = []
+    for class_id in range(thresh_logits.shape[-1]):
+        plane = np.copy(thresh_logits[..., class_id:class_id + 1]).astype(np.uint8)
+        _, contours, _ = cv2.findContours(plane, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        if contours:
+            for contour in contours:
+                x, y, w, h = cv2.boundingRect(contour)
+                if cv2.contourArea(contour) <= min_contour_area:
+                    continue
+                confidence = np.sum(logits[y:y + h, x: x + w, class_id]) / np.count_nonzero(
+                    logits[y:y + h, x: x + w, class_id])
+                bounding_boxes.append([class_id, x * step, y * step, (x + w) * step, (y + h) * step, confidence])
+    return bounding_boxes
+
+
+def draw_bounding_boxes(float_img, bounding_boxes, colours):
+    """
+    Draws bounding boxes on image
+    :param float_img: real valued image
+    :param bounding_boxes: list of bounding boxes, each [class, x1, y1, x2, y2, confidence]
+    :param colours: list of colours per class
+    :return: image with embedded bounding boxes
+    """
+    for bdbox in bounding_boxes:
+        text_size, _ = cv2.getTextSize('%s %.2f' % (params.classes[bdbox[0]], bdbox[-1]), cv2.FONT_HERSHEY_COMPLEX, 0.5, 1)
+        float_img = cv2.rectangle(float_img, (bdbox[1], bdbox[2]), (bdbox[1] + text_size[0] + 5, bdbox[2] + 20),
+                                  colours[bdbox[0]], thickness=-1)
+        float_img = cv2.rectangle(float_img, (bdbox[1], bdbox[2]), (bdbox[3], bdbox[4]), colours[bdbox[0]], thickness=2)
+        float_img = cv2.putText(float_img, '%s %.2f' % (params.classes[bdbox[0]], bdbox[-1]), (bdbox[1] + 5, bdbox[2] + 15),
+                                cv2.FONT_HERSHEY_COMPLEX, 0.5,
+                                (0, 0, 0) if np.sum(colours[bdbox[0]]) > 1 else (1, 1, 1), thickness=1)
+    return float_img
+
+def draw_predicted_cells(float_img, thresh_logits, S, src_img_size):
+    step = int(src_img_size / S)
+    overlay = np.max(thresh_logits, axis=2)
+    output = np.ones_like(float_img) * 0.5
     for y in range(S):
         for x in range(S):
             x_s = int(x * src_img_size / S)
@@ -120,25 +191,27 @@ def embed_output(float_img, logits, threshold, S, src_img_size):
             y_s = int(y * src_img_size / S)
             y_e = int((y + 1) * src_img_size / S)
             output[y_s: y_e, x_s: x_e] *= overlay[y, x]
-    output = np.stack([np.zeros_like(output), output, np.zeros_like(output)], axis=2)
-    output = cv2.addWeighted(float_img, 0.6, output, 0.4, 0)
+
+    output = cv2.addWeighted(float_img, 1, output, 0.4, 0)
 
     # {0: 'axe', 1: 'bottle', 2: 'broom', 3: 'button', 4: 'driller', 5: 'hammer', 6: 'light_bulb', 7: 'nail', 8: 'pliers',
     #  9: 'scissors', 10: 'screw', 11: 'screwdriver', 12: 'tape', 13: 'vial', 14: 'wrench'}
 
     for y in range(S):
         for x in range(S):
-            for c in range(logits.shape[-1]):
-                if logits[y, x, c] == 1:
-                    output = cv2.putText(output, str(c), (x * step + 10, y * step + 20), cv2.FONT_HERSHEY_COMPLEX, 0.6, (0,0,0), 1)
-
+            for c in range(thresh_logits.shape[-1]):
+                if thresh_logits[y, x, c] == 1:
+                    output = cv2.putText(output, str(c), (x * step + 10, y * step + 20), cv2.FONT_HERSHEY_COMPLEX, 0.6,
+                                         (0, 0, 0), 1)
     return output
+
 
 def possibly_create_dirs(embedded_images_path, model_to_save_path):
     if not os.path.isdir(embedded_images_path):
         os.mkdir(embedded_images_path)
     if not os.path.isdir(model_to_save_path):
         os.mkdir(model_to_save_path)
+
 
 def augment_rotate(image, label):
     """
@@ -149,6 +222,7 @@ def augment_rotate(image, label):
     k = random.randint(0, 4)
     return np.rot90(image, k), np.rot90(label, k)
 
+
 def augment_crop(image, label, k):
     """
     Crops image and resizes it, remains label intact
@@ -157,7 +231,10 @@ def augment_crop(image, label, k):
     :return:
     """
     h, w = image.shape[:2]
-    return cv2.resize(image[random.randint(0, k): h-random.randint(0, k), random.randint(0, k): w-random.randint(0, k)], (h, w)), label
+    return cv2.resize(
+        image[random.randint(0, k): h - random.randint(0, k), random.randint(0, k): w - random.randint(0, k)],
+        (h, w)), label
+
 
 def augment_translate(image, label, k):
     """
@@ -169,7 +246,7 @@ def augment_translate(image, label, k):
     flat_label = np.max(label, axis=2)
     non_zero_ys, non_zero_xs = np.nonzero(flat_label)
     y_low_margin = np.min(non_zero_ys)
-    y_high_margin =  image.shape[0] - np.max(non_zero_ys)
+    y_high_margin = image.shape[0] - np.max(non_zero_ys)
     x_low_margin = np.min(non_zero_xs)
     x_high_margin = image.shape[1] - np.max(non_zero_xs)
     d_y = np.min([k, y_low_margin, y_high_margin])
@@ -182,6 +259,7 @@ def augment_translate(image, label, k):
     label = np.roll(label, axis=0, shift=vertical_shift)
     label = np.roll(label, axis=1, shift=horizontal_shift)
     return image, label
+
 
 def augment_stack(images, labels):
     """
@@ -203,8 +281,10 @@ def augment_stack(images, labels):
     image_stack = cv2.resize(image_stack, (images[0].shape[0], images[0].shape[0]))
     return image_stack, label_stack
 
+
 def _bytes_feature(value):
     return tf.train.Feature(bytes_list=tf.train.BytesList(value=[value]))
+
 
 def create_record_writer(writer_path, record_name):
     """
@@ -213,7 +293,9 @@ def create_record_writer(writer_path, record_name):
     writer = tf.python_io.TFRecordWriter(os.path.join(writer_path, record_name + '.tfrecord'))
     return writer
 
-def create_augmented_tf_records(augmentation_number, image_names, label_names, data_folder, record_size, S, threshold_area):
+
+def create_augmented_tf_records(augmentation_number, image_names, label_names, data_folder, record_size, S,
+                                threshold_area):
     """
     Creates tf records of size record_size (with augmentation) and puts them into data folder
     """
@@ -231,7 +313,8 @@ def create_augmented_tf_records(augmentation_number, image_names, label_names, d
     writer = create_record_writer(data_folder, str(beginning_index))
 
     for i, (image_name, label_name) in enumerate(zip(image_names, label_names)):
-        print("\rAugmentation %d, generating train TFRecords (%.2f)" % (augmentation_number, i / len(image_names)), end='', flush=True)
+        print("\rAugmentation %d, generating train TFRecords (%.2f)" % (augmentation_number, i / len(image_names)),
+              end='', flush=True)
         image = image_read(image_name)
         label = np.load(label_name)
 
@@ -268,6 +351,7 @@ def create_augmented_tf_records(augmentation_number, image_names, label_names, d
             writer = create_record_writer(data_folder, str(beginning_index + tf_records_count))
     writer.close()
     print()
+
 
 def decode_train_data(data_path, S, batch_size, capacity, num_threads, min_after_deque):
     """
