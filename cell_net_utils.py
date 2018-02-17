@@ -18,6 +18,28 @@ colours = [[1, 0, 0], [0, 0, 1], [0, 1, 0],
            [0.310, 0.310, 0.184], [0, 0.502, 0.502],
            [1, 0, 1], [0.769, 0.894, 1]]
 
+def get_gt_bdboxes(xml_filename, name_converter, classes, dst_img_size):
+    tree = ET.parse(xml_filename)
+    size = tree.find('size')
+    width = int(size.find('width').text)
+    height = int(size.find('height').text)
+    if height == 0 or width == 0:
+        raise Exception
+    h_ratio = dst_img_size / height
+    w_ratio = dst_img_size / width
+    bdboxes=[]
+
+    objs = tree.findall('object')
+    for obj in objs:
+        bbox = obj.find('bndbox')
+        xmin = int(float(bbox.find('xmin').text) * w_ratio)
+        xmax = int(float(bbox.find('xmax').text) * w_ratio)
+        ymin = int(float(bbox.find('ymin').text) * h_ratio)
+        ymax = int(float(bbox.find('ymax').text) * h_ratio)
+        class_id = classes.index(name_converter[obj.find('name').text.lower().strip()])
+        bdboxes.append([class_id, xmin, ymin, xmax, ymax, 1])
+    return bdboxes
+
 
 def xml_as_tensor(xml_path, dst_img_size, name_converter, classes):
     """
