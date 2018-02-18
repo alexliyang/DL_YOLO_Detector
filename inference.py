@@ -19,8 +19,8 @@ classification_logits = fully_connected.classification_dense(conv, dropout_place
 
 # params
 video_path = 'sample_vids/3.mp4'
-conv_model_name = 'custom_model_1_laptop'
-dense_model_name = 'custom_model_1_laptop'
+conv_model_name = 'imagenet_model_1_pc'
+dense_model_name = 'imagenet_model_1_pc'
 
 """
 ATTENTION! When attaching dense models of different S, make sure to change S in params.py properly in order
