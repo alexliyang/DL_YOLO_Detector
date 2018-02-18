@@ -1,18 +1,18 @@
 import os
+import pickle
+import time
+
+import cv2
 import numpy as np
 import tensorflow as tf
-import cv2
-import time
 
 from architecture import convolution, fully_connected
 from cell_net_utils import get_gt_bdboxes
 from mAP_utils import compute_mAP_recall_precision
 from parameters import params
+from utils import interpret_output
 
-# placeholders
-from utils import draw_boxes, interpret_output
-import pickle
-_, _, image_names, xml_names = pickle.load(open('cell_data/dataset_info.p', 'rb'))
+image_names, xml_names = pickle.load(open('cell_data/custom_dataset_info.p', 'rb'))
 
 images_placeholder = tf.placeholder(tf.float32, shape=[None, params.img_size, params.img_size, 3])
 dropout_placeholder = tf.placeholder(tf.bool, shape=())
@@ -34,8 +34,10 @@ with tf.Session() as sess:
     sess.run(init_op)
 
     saver_conv = tf.train.Saver(var_list=tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='yolo'))
-    saver_detection_dense = tf.train.Saver(var_list=tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='detection_dense'))
-    saver_classification_dense = tf.train.Saver(var_list=tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='classification_dense'))
+    saver_detection_dense = tf.train.Saver(
+        var_list=tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='detection_dense'))
+    saver_classification_dense = tf.train.Saver(
+        var_list=tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='classification_dense'))
 
     saver_conv.restore(sess, os.path.join('models', conv_model_name + '_C', 'model_conv.ckpt'))
     saver_detection_dense.restore(sess, os.path.join('models', dense_model_name + '_D', 'model.ckpt'))
@@ -58,7 +60,7 @@ with tf.Session() as sess:
 
         s = time.time()
         logits = sess.run(detection_logits, feed_dict={images_placeholder: [img],
-                                                    dropout_placeholder: False})
+                                                       dropout_placeholder: False})
 
         pred_bounding_boxes = interpret_output(logits[0, ...])
 
@@ -74,6 +76,14 @@ with tf.Session() as sess:
         AP, recall, precision, mean_AP, mean_recall, mean_precision = compute_mAP_recall_precision(gt_bounding_boxes,
                                                                                                    pred_bounding_boxes,
                                                                                                    params.C)
+
+        for gt_box in gt_bounding_boxes:
+            img = cv2.rectangle(img, (gt_box[1], gt_box[2]), (gt_box[3], gt_box[4]), color=(0, 0, 1), thickness=2)
+        for pred_box in pred_bounding_boxes:
+            img = cv2.rectangle(img, (pred_box[1], pred_box[2]), (pred_box[3], pred_box[4]), color=(0, 1, 0),
+                                thickness=2)
+        cv2.imshow('', (img + 1) / 2)
+        cv2.waitKey(2000)
 
         for key, value in AP.items():
             if value is not None:
@@ -104,10 +114,3 @@ with tf.Session() as sess:
     print('m_precision', np.mean(m_precision))
     print('m_recall', np.mean(m_recall))
     print('time', np.mean(times))
-
-        # for gt_box in gt_bounding_boxes:
-        #     img = cv2.rectangle(img, (gt_box[1], gt_box[2]), (gt_box[3], gt_box[4]), color = (0,0,1), thickness=2)
-        # for pred_box in pred_bounding_boxes:
-        #     img = cv2.rectangle(img, (pred_box[1], pred_box[2]), (pred_box[3], pred_box[4]), color = (0,1,0), thickness=2)
-        # cv2.imshow('', (img + 1) /2)
-        # cv2.waitKey(2000)
