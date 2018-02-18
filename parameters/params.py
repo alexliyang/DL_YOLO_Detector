@@ -4,7 +4,7 @@ from parameters.specific_params import CustomDatasetParams, ImagenetParams, Mixe
 # names
 classification_model_name = 'custom_model_1_laptop'
 detection_model_name = 'custom_model_1_laptop'
-dataset = 'custom' # 'imagenet', 'custom', 'mixed'
+dataset = 'imagenet' # 'imagenet', 'custom', 'mixed'
 root_path = 'data/' + dataset
 
 yolo_weights_path = 'models/yolo_pretrained/YOLO_small.ckpt'

@@ -12,13 +12,29 @@ from cell_net_utils import get_bounding_boxes, remove_outliers, draw_bounding_bo
     get_gt_bdboxes
 from parameters import params
 
+
+
+name_converter = {
+            'guzik': 'button',
+            'klucz_plaski': 'wrench',
+            'kombinerki': 'pliers',
+            'nozyczki': 'scissors',
+            'probowka': 'vial',
+            'srubokret': 'screwdriver',
+            'tasma': 'tape',
+        }
+
 # params
 S = 14
 threshold_area = int(params.img_size / S) ** 2 / 2
 
 # paths
 pretrained_model_path = 'models/cell_network_15_02_eta0_00001_adam_50epochs_batch10'
+
+# image_names, xml_names = pickle.load(open('cell_data/custom_dataset_info.p', 'rb'))
 _, _, image_names, xml_names = pickle.load(open('cell_data/dataset_info.p', 'rb'))
+
+
 images_placeholder = tf.placeholder(dtype=tf.float32, shape=[None, params.img_size, params.img_size, 3])
 conv = conv_model(images_placeholder)
 output = tf.layers.conv2d(conv, params.C, kernel_size=[1, 1],
@@ -63,6 +79,14 @@ with tf.Session() as sess:
         times.append(e-s)
 
         AP, recall, precision, mean_AP, mean_recall, mean_precision = compute_mAP_recall_precision(gt_bounding_boxes, pred_bounding_boxes, params.C)
+
+        # for gt_box in gt_bounding_boxes:
+        #     img = cv2.rectangle(img, (gt_box[1], gt_box[2]), (gt_box[3], gt_box[4]), color=(0, 0, 1), thickness=2)
+        # for pred_box in pred_bounding_boxes:
+        #     img = cv2.rectangle(img, (pred_box[1], pred_box[2]), (pred_box[3], pred_box[4]), color=(0, 1, 0),
+        #                         thickness=2)
+        # cv2.imshow('', (img + 1) / 2)
+        # cv2.waitKey(2000)
 
         for key, value in AP.items():
             if value is not None:
