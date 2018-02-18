@@ -14,20 +14,9 @@ from parameters import params
 
 
 
-name_converter = {
-            'guzik': 'button',
-            'klucz_plaski': 'wrench',
-            'kombinerki': 'pliers',
-            'nozyczki': 'scissors',
-            'probowka': 'vial',
-            'srubokret': 'screwdriver',
-            'tasma': 'tape',
-        }
-
 # params
 S = 14
 threshold_area = int(params.img_size / S) ** 2 / 2
-
 # paths
 pretrained_model_path = 'models/cell_network_15_02_eta0_00001_adam_50epochs_batch10'
 

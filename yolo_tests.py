@@ -77,13 +77,13 @@ with tf.Session() as sess:
                                                                                                    pred_bounding_boxes,
                                                                                                    params.C)
 
-        for gt_box in gt_bounding_boxes:
-            img = cv2.rectangle(img, (gt_box[1], gt_box[2]), (gt_box[3], gt_box[4]), color=(0, 0, 1), thickness=2)
-        for pred_box in pred_bounding_boxes:
-            img = cv2.rectangle(img, (pred_box[1], pred_box[2]), (pred_box[3], pred_box[4]), color=(0, 1, 0),
-                                thickness=2)
-        cv2.imshow('', (img + 1) / 2)
-        cv2.waitKey(2000)
+        # for gt_box in gt_bounding_boxes:
+        #     img = cv2.rectangle(img, (gt_box[1], gt_box[2]), (gt_box[3], gt_box[4]), color=(0, 0, 1), thickness=2)
+        # for pred_box in pred_bounding_boxes:
+        #     img = cv2.rectangle(img, (pred_box[1], pred_box[2]), (pred_box[3], pred_box[4]), color=(0, 1, 0),
+        #                         thickness=2)
+        # cv2.imshow('', (img + 1) / 2)
+        # cv2.waitKey(2000)
 
         for key, value in AP.items():
             if value is not None:
