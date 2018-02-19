@@ -22,7 +22,8 @@ pretrained_model_path = 'models/cell_network_15_02_eta0_00001_adam_50epochs_batc
 
 # image_names, xml_names = pickle.load(open('cell_data/custom_dataset_info.p', 'rb'))
 _, _, image_names, xml_names = pickle.load(open('cell_data/dataset_info.p', 'rb'))
-
+dupa = [name for name in image_names if 'wrench' in name]
+print(len(dupa))
 
 images_placeholder = tf.placeholder(dtype=tf.float32, shape=[None, params.img_size, params.img_size, 3])
 conv = conv_model(images_placeholder)

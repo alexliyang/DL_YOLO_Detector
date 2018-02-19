@@ -15,7 +15,7 @@ from parameters import params
 # generate_cell_net_data('cell_data', params.img_size, params.name_converter, params.classes)
 
 # params
-S = 28  # match with conv output
+S = 14  # match with conv output
 eta = 0.00001
 threshold_area = int(params.img_size / S) ** 2 / 2
 batch_size = 5
