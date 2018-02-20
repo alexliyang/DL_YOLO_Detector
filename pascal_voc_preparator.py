@@ -50,9 +50,9 @@ def generate_cell_net_data(root_folder, image_filenames, xmls_filenames, img_siz
 
 # generate_cell_net_data(root_folder, image_filenames, xmls_filenames, params.img_size, name_converter, classes)
 
-augmentations = 1  # number of dataset augmentations
-train_image_filenames = sorted([t_images_path + name for name in os.listdir(t_images_path)])
-train_labels_filenames = sorted([t_labels_path + name for name in os.listdir(t_labels_path)])
-for i in range(augmentations):
-    create_augmented_tf_records(i, train_image_filenames, train_labels_filenames, train_records_path, 10, S,
-                                threshold_area)
+# augmentations = 1  # number of dataset augmentations
+# train_image_filenames = sorted([t_images_path + name for name in os.listdir(t_images_path)])
+# train_labels_filenames = sorted([t_labels_path + name for name in os.listdir(t_labels_path)])
+# for i in range(augmentations):
+#     create_augmented_tf_records(i, train_image_filenames, train_labels_filenames, train_records_path, 10, S,
+#                                 threshold_area)

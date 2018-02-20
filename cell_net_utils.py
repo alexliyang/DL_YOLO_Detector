@@ -10,13 +10,27 @@ from sklearn.utils import shuffle
 
 from parameters import params
 
+C = 20
+
+# colours = [[1, 0, 0], [0, 0, 1], [0, 1, 0],
+#            [0.81, 0.89, 0.25], [0, 0.647, 1],
+#            [0.502, 0, 0.502], [0.196, 0.804, 0.196],
+#            [0.439, 0.01, 0.01], [0.663, 0.663, 0.663],
+#            [0.118, 0.412, 0.824], [0, 0, 0.5],
+#            [0.310, 0.310, 0.184], [0, 0.502, 0.502],
+#            [1, 0, 1], [0.769, 0.894, 1]]
+
 colours = [[1, 0, 0], [0, 0, 1], [0, 1, 0],
            [0.81, 0.89, 0.25], [0, 0.647, 1],
            [0.502, 0, 0.502], [0.196, 0.804, 0.196],
            [0.439, 0.01, 0.01], [0.663, 0.663, 0.663],
            [0.118, 0.412, 0.824], [0, 0, 0.5],
            [0.310, 0.310, 0.184], [0, 0.502, 0.502],
-           [1, 0, 1], [0.769, 0.894, 1]]
+           [1, 0, 1], [0.769, 0.894, 1],
+           [0.118, 0.412, 0.824], [0, 0, 0.5],
+           [0.310, 0.310, 0.184], [0, 0.502, 0.502],
+           [1, 0, 1], [0.769, 0.894, 1]
+           ]
 
 def get_gt_bdboxes(xml_filename, name_converter, classes, dst_img_size):
     tree = ET.parse(xml_filename)
@@ -334,7 +348,7 @@ def create_augmented_tf_records(augmentation_number, image_names, label_names, d
     tf_records_count = 0
     writer = create_record_writer(data_folder, str(beginning_index))
 
-    for i, (image_name, label_name) in enumerate(zip(image_names, label_names)):
+    for i, (image_name, label_name) in enumerate(zip(image_names[:500], label_names[:500])):
         print("\rAugmentation %d, generating train TFRecords (%.2f)" % (augmentation_number, i / len(image_names)),
               end='', flush=True)
         image = image_read(image_name)
@@ -351,7 +365,7 @@ def create_augmented_tf_records(augmentation_number, image_names, label_names, d
             images_buffer.append(image)
             labels_buffer.append(label)
 
-        label = resize_label(label, S, params.C, params.img_size, threshold_area)
+        label = resize_label(label, S, 20, params.img_size, threshold_area)
         feature = {'train/label': _bytes_feature(tf.compat.as_bytes(label.tostring())),
                    'train/image': _bytes_feature(tf.compat.as_bytes(image.tostring()))}
         example = tf.train.Example(features=tf.train.Features(feature=feature))
@@ -359,7 +373,7 @@ def create_augmented_tf_records(augmentation_number, image_names, label_names, d
 
         if len(images_buffer) == 4:
             image, label = augment_stack(images_buffer, labels_buffer)
-            label = resize_label(label, S, params.C, params.img_size, threshold_area)
+            label = resize_label(label, S, C, params.img_size, threshold_area)
             feature = {'train/label': _bytes_feature(tf.compat.as_bytes(label.tostring())),
                        'train/image': _bytes_feature(tf.compat.as_bytes(image.tostring()))}
             example = tf.train.Example(features=tf.train.Features(feature=feature))
@@ -393,7 +407,7 @@ def decode_train_data(data_path, S, batch_size, capacity, num_threads, min_after
     _, serialized_example = reader.read(filename_queue)
     features = tf.parse_single_example(serialized_example, features=feature)
     image = tf.reshape(tf.decode_raw(features['train/image'], tf.float32), [params.img_size, params.img_size, 3])
-    label = tf.reshape(tf.decode_raw(features['train/label'], tf.float32), [S, S, params.C])
+    label = tf.reshape(tf.decode_raw(features['train/label'], tf.float32), [S, S, C])
 
     images, labels = tf.train.shuffle_batch([image, label],
                                             batch_size=batch_size,

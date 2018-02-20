@@ -92,7 +92,7 @@ def conv_model(input_placeholder):
             net = slim.conv2d(net, 512, 3, scope='conv_18')
             net = slim.conv2d(net, 512, 1, scope='conv_19')
             net = slim.conv2d(net, 1024, 3, scope='conv_20') # (5, 28, 28, 1024)
-            # net = slim.max_pool2d(net, 2, padding='SAME', scope='pool_21')
+            net = slim.max_pool2d(net, 2, padding='SAME', scope='pool_21')
             net = slim.conv2d(net, 512, 1, scope='conv_22')
             net = slim.conv2d(net, 1024, 3, scope='conv_23')
             net = slim.conv2d(net, 512, 1, scope='conv_24')
