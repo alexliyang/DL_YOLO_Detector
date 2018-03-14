@@ -10,7 +10,11 @@ from sklearn.utils import shuffle
 
 from parameters import params
 
-C = 20
+C = 15
+
+classes = ['button', 'wrench', 'pliers', 'scissors', 'vial', 'screwdriver', 'tape', 'hammer', 'bottle', 'light_bulb', 'nail', 'screw', 'driller', 'broom',
+           'axe']
+name_converter = dict(zip(classes, classes))
 
 # colours = [[1, 0, 0], [0, 0, 1], [0, 1, 0],
 #            [0.81, 0.89, 0.25], [0, 0.647, 1],
@@ -112,8 +116,10 @@ def generate_cell_net_data(root_folder, img_size, name_converter, classes):
     # v_xmls_filenames = xmls_filenames[int(0.9 * len(xmls_filenames)):]
     # pickle.dump([t_images_filenames, t_xmls_filenames, v_images_filenames, v_xmls_filenames], open(os.path.join(root_folder, 'dataset_info.p'), 'wb'))
 
-    t_images_filenames, t_xmls_filenames, v_images_filenames, v_xmls_filenames = pickle.load(
-        open(os.path.join(root_folder, 'dataset_info.p'), 'rb'))
+    t_images_filenames = ['data/train/images/' + name for name in os.listdir('data/train/images/')]
+    t_xmls_filenames = ['data/train/annotations/' + name for name in os.listdir('data/train/annotations/')]
+    v_images_filenames = ['data/test/images/' + name for name in os.listdir('data/test/images/')]
+    v_xmls_filenames  = ['data/test/annotations/' + name for name in os.listdir('data/test/annotations/')]
 
     # train data
     for i, (imagename, xmlname) in enumerate(zip(t_images_filenames, t_xmls_filenames)):
@@ -348,7 +354,7 @@ def create_augmented_tf_records(augmentation_number, image_names, label_names, d
     tf_records_count = 0
     writer = create_record_writer(data_folder, str(beginning_index))
 
-    for i, (image_name, label_name) in enumerate(zip(image_names[:500], label_names[:500])):
+    for i, (image_name, label_name) in enumerate(zip(image_names, label_names)):
         print("\rAugmentation %d, generating train TFRecords (%.2f)" % (augmentation_number, i / len(image_names)),
               end='', flush=True)
         image = image_read(image_name)
@@ -365,7 +371,7 @@ def create_augmented_tf_records(augmentation_number, image_names, label_names, d
             images_buffer.append(image)
             labels_buffer.append(label)
 
-        label = resize_label(label, S, 20, params.img_size, threshold_area)
+        label = resize_label(label, S, 15, params.img_size, threshold_area)
         feature = {'train/label': _bytes_feature(tf.compat.as_bytes(label.tostring())),
                    'train/image': _bytes_feature(tf.compat.as_bytes(image.tostring()))}
         example = tf.train.Example(features=tf.train.Features(feature=feature))
@@ -416,3 +422,6 @@ def decode_train_data(data_path, S, batch_size, capacity, num_threads, min_after
                                             min_after_dequeue=min_after_deque,
                                             allow_smaller_final_batch=True)
     return images, labels
+
+
+# generate_cell_net_data('data/', 448, name_converter, classes)

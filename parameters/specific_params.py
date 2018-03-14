@@ -100,5 +100,3 @@ class MixedDatasetParams:
         self.custom_classes = custom.classes
 
         self.classes = sorted(list(set(self.custom_classes).union(self.imagent_classes)))
-
-

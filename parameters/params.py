@@ -53,14 +53,15 @@ elif dataset == 'custom':
 elif dataset == 'mixed':
     specific_params = MixedDatasetParams()
 
-# name_converter = #specific_params.name_converter
-classes =  ['aeroplane', 'bicycle', 'bird', 'boat',
-           'bottle', 'bus', 'car', 'cat', 'chair',
-           'cow', 'diningtable', 'dog', 'horse',
-           'motorbike', 'person', 'pottedplant',
-           'sheep', 'sofa', 'train', 'tvmonitor'] #specific_params.classes
-name_converter = dict(zip(classes, classes))
-C = 20#len(classes)
+classes = specific_params.classes
+name_converter = specific_params.name_converter
+# classes =  ['aeroplane', 'bicycle', 'bird', 'boat',
+#            'bottle', 'bus', 'car', 'cat', 'chair',
+#            'cow', 'diningtable', 'dog', 'horse',
+#            'motorbike', 'person', 'pottedplant',
+#            'sheep', 'sofa', 'train', 'tvmonitor'] #specific_params.classes
+# name_converter = dict(zip(classes, classes))
+C = len(classes)
 num_dense_outputs = S * S * (C + 5 * B)
 boundary1 = S * S * C
 boundary2 = boundary1 + S * S * B
